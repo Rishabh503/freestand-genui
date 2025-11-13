@@ -1,165 +1,161 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Circle, Square, Triangle } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Sun, ArrowUp, ArrowDown, Cloud, Thermometer, Info } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 
 export default function LessonComponent() {
-  const [radius, setRadius] = useState(50);
-  const [diameter, setDiameter] = useState(radius * 2);
-  const [circumference, setCircumference] = useState(2 * Math.PI * radius);
-  const [area, setArea] = useState(Math.PI * radius * radius);
-  const [showFormula, setShowFormula] = useState(false);
-  const [animationTrigger, setAnimationTrigger] = useState(false);
+  const [sunFacts, setSunFacts] = useState([
+    "The Sun is a star at the center of our Solar System.",
+    "It's a giant ball of hot gas, mostly hydrogen and helium.",
+    "The Sun's gravity holds the Solar System together.",
+    "Light from the Sun reaches Earth in about 8 minutes.",
+    "The Sun is about 4.6 billion years old."
+  ]);
+  const [currentFactIndex, setCurrentFactIndex] = useState(0);
+  const [temperature, setTemperature] = useState(25);
+  const [cloudCover, setCloudCover] = useState(0); // 0-100
+  const [brightness, setBrightness] = useState(100); // 0-100
+  const [isDay, setIsDay] = useState(true);
 
-  useEffect(() => {
-    setDiameter(radius * 2);
-    setCircumference(2 * Math.PI * radius);
-    setArea(Math.PI * radius * radius);
-  }, [radius]);
-
-  const handleRadiusChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newRadius = parseFloat(event.target.value);
-    setRadius(newRadius);
-  };
-
-  const toggleFormula = () => {
-    setShowFormula(!showFormula);
-  };
-
-  const triggerAnimation = () => {
-    setAnimationTrigger(!animationTrigger);
-  };
-
-  const pieChartData = [
-    { name: 'Area', value: area },
-    { name: 'Remaining', value: 1000 - area > 0 ? 1000 - area : 0 }, // Ensure no negative values
+  const temperatureData = [
+    { time: '0:00', temperature: 15 },
+    { time: '3:00', temperature: 14 },
+    { time: '6:00', temperature: 18 },
+    { time: '9:00', temperature: 25 },
+    { time: '12:00', temperature: 30 },
+    { time: '15:00', temperature: 28 },
+    { time: '18:00', temperature: 22 },
+    { time: '21:00', temperature: 18 },
+    { time: '24:00', temperature: 16 },
   ];
 
-  const COLORS = ['#0088FE', '#00C49F'];
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white border border-gray-300 shadow-md p-2 rounded-md">
-          <p className="font-semibold">{`${payload[0].name} : ${payload[0].value.toFixed(2)}`}</p>
-        </div>
-      );
+  useEffect(() => {
+    if (temperature > 35) {
+      alert("Warning: High temperature! Stay hydrated.");
+    }
+    if (temperature < 10) {
+      alert("Warning: Low temperature! Dress warmly.");
     }
 
-    return null;
+    // Simulate day/night cycle
+    const currentHour = new Date().getHours();
+    setIsDay(currentHour > 6 && currentHour < 18);
+
+  }, [temperature]);
+
+  const nextFact = () => {
+    setCurrentFactIndex((prevIndex) => (prevIndex + 1) % sunFacts.length);
+  };
+
+  const prevFact = () => {
+    setCurrentFactIndex((prevIndex) => (prevIndex - 1 + sunFacts.length) % sunFacts.length);
+  };
+
+  const handleTemperatureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setTemperature(Number(event.target.value));
+  };
+
+  const handleCloudCoverChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setCloudCover(Number(event.target.value));
+    setBrightness(100 - Number(event.target.value)); // Adjust brightness based on cloud cover
   };
 
   return (
-    <div className="container mx-auto p-4 bg-gray-100 rounded-lg shadow-md">
-      <h1 className="text-3xl font-semibold mb-4 text-center text-blue-700">Understanding Circles</h1>
+    <div className="container mx-auto p-8 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-lg shadow-xl">
+      <h1 className="text-3xl font-bold text-center text-orange-700 mb-6">Let's Learn About the Sun!</h1>
 
-      <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-2 text-gray-800">Interactive Circle Visualizer</h2>
-        <div className="flex items-center space-x-4">
-          <label htmlFor="radius" className="block text-gray-700 text-sm font-bold">
-            Radius:
-          </label>
+      {/* Sun Visualization */}
+      <div className="flex justify-center items-center mb-8">
+        <div className={`relative w-40 h-40 rounded-full ${isDay ? 'bg-yellow-500 shadow-2xl' : 'bg-gray-800'} transition-all duration-500 ease-in-out`}>
+          {isDay && <Sun className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-orange-500 w-20 h-20" />}
+          {!isDay && <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white w-20 h-20 animate-pulse">Night</div>}
+        </div>
+        <div className="ml-4">
+          <p className="text-gray-700">{isDay ? 'It\'s daytime!' : 'It\'s nighttime!'}</p>
+        </div>
+      </div>
+
+      {/* Temperature Control */}
+      <div className="mb-6">
+        <label htmlFor="temperature" className="block text-gray-700 text-sm font-bold mb-2">
+          Temperature (°C):
+        </label>
+        <div className="flex items-center">
+          <Thermometer className="mr-2 text-orange-500" />
           <input
             type="number"
-            id="radius"
-            className="shadow appearance-none border rounded w-24 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            value={radius}
-            onChange={handleRadiusChange}
+            id="temperature"
+            value={temperature}
+            onChange={handleTemperatureChange}
+            className="shadow appearance-none border rounded w-20 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           />
+          <span className="ml-2 text-gray-700">{temperature}°C</span>
         </div>
+      </div>
 
-        <div className="mt-4 flex justify-center items-center">
-          <svg width="200" height="200">
-            <circle
-              cx="100"
-              cy="100"
-              r={radius}
-              stroke="blue"
-              strokeWidth="4"
-              fill="lightblue"
-              className={`transition-all duration-500 ${animationTrigger ? 'scale-110' : 'scale-100'}`}
-            />
-            <line x1="100" y1="100" x2={100 + radius} y2="100" stroke="red" strokeWidth="2" />
-            <text x={100 + radius / 2} y="95" fill="red" textAnchor="middle">
-              Radius
-            </text>
-          </svg>
+      {/* Cloud Cover Control */}
+      <div className="mb-6">
+        <label htmlFor="cloudCover" className="block text-gray-700 text-sm font-bold mb-2">
+          Cloud Cover (%):
+        </label>
+        <div className="flex items-center">
+          <Cloud className="mr-2 text-gray-500" />
+          <input
+            type="range"
+            id="cloudCover"
+            min="0"
+            max="100"
+            value={cloudCover}
+            onChange={handleCloudCoverChange}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+          <span className="ml-2 text-gray-700">{cloudCover}%</span>
         </div>
-      </section>
+        <p className="text-sm text-gray-500 mt-1">Adjust the cloud cover to see how it affects brightness.</p>
+        <p className="text-sm text-gray-500 mt-1">Brightness: {brightness}%</p>
+      </div>
 
-      <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-2 text-gray-800">Circle Properties</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p className="text-gray-700">
-              <span className="font-semibold">Diameter:</span> {diameter.toFixed(2)}
-            </p>
-            <p className="text-gray-700">
-              <span className="font-semibold">Circumference:</span> {circumference.toFixed(2)}
-            </p>
-            <p className="text-gray-700">
-              <span className="font-semibold">Area:</span> {area.toFixed(2)}
-            </p>
-          </div>
-          <div>
-            <button
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-              onClick={toggleFormula}
-            >
-              {showFormula ? 'Hide Formulas' : 'Show Formulas'}
-            </button>
-            {showFormula && (
-              <div className="mt-4">
-                <p className="text-gray-600">Diameter = 2 * Radius</p>
-                <p className="text-gray-600">Circumference = 2 * π * Radius</p>
-                <p className="text-gray-600">Area = π * Radius²</p>
-              </div>
-            )}
-          </div>
+      {/* Sun Facts Carousel */}
+      <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold text-orange-600 mb-4">Fun Fact About the Sun:</h2>
+        <p className="text-gray-800">{sunFacts[currentFactIndex]}</p>
+        <div className="flex justify-between mt-4">
+          <button onClick={prevFact} className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+            <ArrowUp className="inline-block mr-2" />
+            Previous
+          </button>
+          <button onClick={nextFact} className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+            Next
+            <ArrowDown className="inline-block ml-2" />
+          </button>
         </div>
-      </section>
+      </div>
 
-      <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-2 text-gray-800">Area Visualization</h2>
-        <div className="w-full h-64">
-          <ResponsiveContainer>
-            <PieChart>
-              <Pie
-                data={pieChartData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                fill="#8884d8"
-                label
-              >
-                {pieChartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        <p className="text-gray-700 text-center">This pie chart visualizes the proportion of the circle's area.</p>
-      </section>
+      {/* Temperature Chart */}
+      <div className="bg-white shadow-md rounded-lg p-6">
+        <h2 className="text-xl font-semibold text-orange-600 mb-4">Daily Temperature Variation</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={temperatureData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="time" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey="temperature" stroke="#e67e22" activeDot={{ r: 8 }} />
+          </LineChart>
+        </ResponsiveContainer>
+        <p className="text-sm text-gray-500 mt-2">This chart shows how the temperature changes throughout the day.</p>
+      </div>
 
-      <section>
-        <h2 className="text-xl font-semibold mb-2 text-gray-800">Interactive Animation</h2>
-        <button
-          className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-          onClick={triggerAnimation}
-        >
-          Animate Circle
-        </button>
-        <p className="mt-2 text-gray-700">Click the button to see the circle scale up and down!</p>
-      </section>
-
-      <footer className="mt-8 text-center text-gray-500">
-        <p>Learn more about circles and other shapes!</p>
-      </footer>
+      {/* Additional Information */}
+      <div className="mt-8 p-4 bg-yellow-50 rounded-md border border-yellow-200">
+        <h3 className="font-semibold text-lg text-orange-700 flex items-center"><Info className="mr-2" /> Additional Resources</h3>
+        <ul className="list-disc pl-5 mt-2 text-gray-700">
+          <li><a href="https://www.nasa.gov/mission_pages/sunearth/index.html" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">NASA - Sun-Earth Connection</a></li>
+          <li><a href="https://www.space.com/15592-sun-facts-composition-size-age.html" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Space.com - Facts About The Sun</a></li>
+        </ul>
+      </div>
     </div>
   );
 }
