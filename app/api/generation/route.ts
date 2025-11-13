@@ -1,35 +1,46 @@
-import { GoogleGenAI } from "@google/genai";
+// app/api/generation/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { runLessonGenerator } from "@/lib/langchain/graph";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_KEY
-});
+export async function POST(req: NextRequest) {
+  try {
+    const { prompt } = await req.json();
 
-export async function POST(req: Request) {
-  const { prompt } = await req.json()
-  const Instructions=`
-  You are a beautiful ui generator u generate ui in tsx for the given inputs
-  u find mistakes in your code recctify them and then give the final ui code in tsx 
-  after checking it 
-  your primary task is to return user a ui 
-  user mentions the lesson he wants to learn
-  u have to make a website which teaches the user that topic in detail through some beautiful website
-  u have to design the website which teaches him that 
-  the ui should be functional as well 
-  ui should be made for user to understand the lesson properly
-  you give an output saying this is not a toppic for inputs u find bad or not realted to education
-  `
-  
+    if (!prompt || typeof prompt !== "string") {
+      return NextResponse.json(
+        { error: "Invalid prompt" },
+        { status: 400 }
+      );
+    }
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-     config: {
-      systemInstruction: Instructions,
-    },
-  })
+    // Run the LangGraph pipeline
+    const result = await runLessonGenerator(prompt);
 
-  const text = response.text
-  console.log(text)
+    if (result.status === "completed" && result.lessonId) {
+      return NextResponse.json({
+        success: true,
+        lessonId: result.lessonId,
+        title: result.lessonTitle,
+        message: "Lesson generated successfully!",
+      });
+    }
 
-  return Response.json({ ans: text })
+    if (result.status === "rejected") {
+      return NextResponse.json({
+        success: false,
+        error: result.errorMessage || "This topic is not suitable for a lesson",
+      });
+    }
+
+    return NextResponse.json({
+      success: false,
+      error: result.errorMessage || "Failed to generate lesson",
+    });
+  } catch (error: any) {
+    console.error("Generation error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    );
+  }
 }

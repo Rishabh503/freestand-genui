@@ -1,94 +1,136 @@
 "use client";
-
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState({});
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleGenerate = async () => {
-    console.log("prompt recievd ",prompt)
+    if (!prompt.trim()) {
+      setError("Please enter a prompt");
+      return;
+    }
+
+    console.log("prompt received", prompt);
     setLoading(true);
     setResult(null);
+    setError(null);
 
-   
-   const res = await fetch('/api/generation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
-    })
-    const data = await res.json();
-    console.log(data.ans);
+    try {
+      const res = await fetch("/api/generation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
 
-    setResult({
-      id: 1,
-      output: `Generated result for: ${data.ans}`,
-    });
+      const data = await res.json();
 
-    setLoading(false);
+      if (data.success) {
+        setResult(data);
+        // Redirect to lesson page after 2 seconds
+        setTimeout(() => {
+          router.push(`/lessons/${data.lessonId}`);
+        }, 2000);
+      } else {
+        setError(data.error || "Failed to generate lesson");
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center py-12 px-4">
-      <div className="w-full max-w-xl bg-white p-6 rounded-lg shadow">
-        <h1 className="text-2xl font-semibold mb-4">Front Page Discussion</h1>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center py-12 px-4">
+      <div className="w-full max-w-2xl">
+        <div className="bg-white p-8 rounded-2xl shadow-xl">
+          <h1 className="text-3xl font-bold mb-2 text-gray-800">
+            AI Lesson Generator
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Describe what you want to learn and we'll create an interactive lesson for you
+          </p>
 
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Enter your prompt here..."
-          className="w-full border p-3 rounded mb-4"
-          rows={4}
-        />
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Example: 'Teach me about graphs and coordinates' or 'Explain photosynthesis with animations'"
+            className="w-full border-2 border-gray-300 p-4 rounded-lg mb-4 focus:border-blue-500 focus:outline-none transition"
+            rows={4}
+          />
 
-        <button
-          onClick={handleGenerate}
-          className="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700 transition"
-        >
-          Generate
-        </button>
+          <button
+            onClick={handleGenerate}
+            disabled={loading}
+            className="w-full bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
+          >
+            {loading ? "Generating Your Lesson..." : "Generate Interactive Lesson"}
+          </button>
 
-        <div className="mt-6">
-          <h2 className="text-lg font-medium mb-2">Status Table</h2>
+          {error && (
+            <div className="mt-6 bg-red-50 border-2 border-red-300 p-4 rounded-lg">
+              <p className="text-red-700 font-medium">❌ {error}</p>
+            </div>
+          )}
 
-          <table className="w-full border-collapse border text-sm">
-            <thead>
-              <tr className="bg-gray-200">
-                <th className="border p-2">Stage</th>
-                <th className="border p-2">Status</th>
-              </tr>
-            </thead>
+          {loading && (
+            <div className="mt-6">
+              <h2 className="text-lg font-semibold mb-3 text-gray-700">
+                Generation Progress
+              </h2>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <span className="text-gray-700">🔍 Analyzing your request</span>
+                  <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-500">✨ Generating interactive UI</span>
+                  <span className="text-gray-400">⏳</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-500">✅ Validating TypeScript</span>
+                  <span className="text-gray-400">⏳</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <span className="text-gray-500">🔧 Auto-fixing any errors</span>
+                  <span className="text-gray-400">⏳</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-500">💾 Saving lesson</span>
+                  <span className="text-gray-400">⏳</span>
+                </div>
+              </div>
+              <p className="text-sm text-gray-500 mt-3 text-center">
+                💡 Smart error fixing: We fix issues instead of regenerating!
+              </p>
+            </div>
+          )}
 
-            <tbody>
-              <tr>
-                <td className="border p-2">Prompt Received</td>
-                <td className="border p-2">{prompt ? "Yes" : "No"}</td>
-              </tr>
-
-              <tr>
-                <td className="border p-2">Generating</td>
-                <td className="border p-2">
-                  {loading ? "Loading..." : result ? "Done" : "Idle"}
-                </td>
-              </tr>
-
-              <tr>
-                <td className="border p-2">Output Ready</td>
-                <td className="border p-2">
-                  {result ? "Available" : "Not yet"}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          {result && (
+            <div className="mt-6 bg-green-50 border-2 border-green-400 p-6 rounded-lg">
+              <h3 className="font-semibold text-xl mb-2 text-green-800">
+                ✅ Lesson Generated!
+              </h3>
+              <p className="text-gray-700 mb-3">
+                <strong>Title:</strong> {result.title}
+              </p>
+              <p className="text-gray-600 text-sm mb-4">
+                Redirecting you to your interactive lesson...
+              </p>
+              <button
+                onClick={() => router.push(`/lessons/${result.lessonId}`)}
+                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition font-medium"
+              >
+                View Lesson Now →
+              </button>
+            </div>
+          )}
         </div>
-
-        {result && (
-          <div className="mt-6 bg-green-50 border border-green-400 p-4 rounded">
-            <h3 className="font-medium mb-2">Generated Output</h3>
-            <p>{result.output}</p>
-          </div>
-        )}
       </div>
     </div>
   );
