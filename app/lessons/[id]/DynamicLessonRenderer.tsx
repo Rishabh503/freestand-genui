@@ -24,7 +24,28 @@ export default function DynamicLessonRenderer({
 
       console.log("Original code:", code);
 
-      // Extract default exported function name
+      // Extract what's actually imported from the code
+      const importedFromLucide = new Set<string>();
+      const importedFromRecharts = new Set<string>();
+      
+      // Match: import { X, Y, Z } from 'lucide-react'
+      const lucideMatches = code.matchAll(/import\s*\{([^}]+)\}\s*from\s*['"]lucide-react['"]/g);
+      for (const match of lucideMatches) {
+        const items = match[1].split(',').map(s => s.trim());
+        items.forEach(item => importedFromLucide.add(item));
+      }
+      
+      // Match: import { X, Y, Z } from 'recharts'
+      const rechartsMatches = code.matchAll(/import\s*\{([^}]+)\}\s*from\s*['"]recharts['"]/g);
+      for (const match of rechartsMatches) {
+        const items = match[1].split(',').map(s => s.trim());
+        items.forEach(item => importedFromRecharts.add(item));
+      }
+
+      console.log("Imported from Lucide:", Array.from(importedFromLucide));
+      console.log("Imported from Recharts:", Array.from(importedFromRecharts));
+
+      // Extract component name
       const match = code.match(/export\s+default\s+function\s+([A-Za-z0-9_]+)/);
       const componentName = match ? match[1] : null;
 
@@ -38,16 +59,16 @@ export default function DynamicLessonRenderer({
 
       // Remove ALL imports and exports
       let cleaned = code
-        .replace(/^["']use client["'];?\s*/gm, "") // Remove "use client"
-        .replace(/import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)(?:\s*,\s*(?:\{[^}]*\}|\*\s+as\s+\w+|\w+))*\s+from\s+)?['"][^'"]+['"];?/gm, "") // Remove all import statements
-        .replace(/export\s+default\s+function\s+/g, "function ") // Remove export default
-        .replace(/export\s+default\s+/g, "") // Remove standalone export default
-        .replace(/export\s*\{[^}]*\}\s*;?/g, "") // Remove named exports
+        .replace(/^["']use client["'];?\s*/gm, "")
+        .replace(/import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)(?:\s*,\s*(?:\{[^}]*\}|\*\s+as\s+\w+|\w+))*\s+from\s+)?['"][^'"]+['"];?/gm, "")
+        .replace(/export\s+default\s+function\s+/g, "function ")
+        .replace(/export\s+default\s+/g, "")
+        .replace(/export\s*\{[^}]*\}\s*;?/g, "")
         .trim();
 
       console.log("Cleaned code:", cleaned);
 
-      // Compile JSX + TypeScript → JS using Babel
+      // Compile JSX + TypeScript → JS
       let transformed = Babel.transform(cleaned, {
         presets: ["react", "typescript"],
         filename: "lesson.tsx",
@@ -55,81 +76,70 @@ export default function DynamicLessonRenderer({
 
       console.log("Transformed code:", transformed);
 
-      // Create comprehensive execution scope with ALL available libraries
+      // Build dynamic destructuring for only what's imported
+      const lucideDestructure = importedFromLucide.size > 0
+        ? `const { ${Array.from(importedFromLucide).join(', ')} } = LucideReact;`
+        : '';
+      
+      const rechartsDestructure = importedFromRecharts.size > 0
+        ? `const { ${Array.from(importedFromRecharts).join(', ')} } = Recharts;`
+        : '';
+
+      // Create execution scope with ONLY what's needed
       const executionScope = `
         // React and hooks
         const React = arguments[0];
         const { useState, useEffect, useMemo, useCallback, useRef, useContext, useReducer } = React;
         
-        // Recharts - ALL exports
+        // Libraries
         const Recharts = arguments[1];
-        const { 
-          ResponsiveContainer, LineChart, BarChart, PieChart, AreaChart, 
-          ScatterChart, RadarChart, ComposedChart, Treemap, Sankey, 
-          FunnelChart, Funnel, Line, Bar, Pie, Area, Scatter, Radar, 
-          RadialBar, Brush, XAxis, YAxis, ZAxis, CartesianGrid, 
-          Tooltip, Legend, Cell, PolarGrid, PolarAngleAxis, 
-          PolarRadiusAxis, ReferenceLine, ReferenceDot, ReferenceArea, 
-          ErrorBar, LabelList, Label, Text, RadialBarChart, Sector,
-          Curve, Dot, Cross, Customized
-        } = Recharts;
-        
-        // Lucide React - ALL common icons
         const LucideReact = arguments[2];
-        const {
-          Activity, AlertCircle, AlertTriangle, Archive, ArrowRight, ArrowLeft,
-          ArrowUp, ArrowDown, Award, BarChart2, BarChart3, Battery, BatteryCharging,
-          Bell, BellOff, Bluetooth, Bold, Book, BookOpen, Bookmark, Box, Briefcase,
-          Calendar, Camera, CameraOff, Check, CheckCircle, CheckSquare, ChevronDown,
-          ChevronLeft, ChevronRight, ChevronUp, Circle, Clipboard, Clock, Cloud,
-          Code, Coffee, Command, Copy, CreditCard, Crop, Database, Delete, Disc,
-          Download, DownloadCloud, Droplet, Edit, Edit2, Edit3, ExternalLink,
-          Eye, EyeOff, Facebook, FastForward, File, FileText, Film, Filter, Flag,
-          Folder, Frown, Gift, GitBranch, GitHub, Globe, Grid, Hash, Heart,
-          HelpCircle, Home, Image, Inbox, Info, Instagram, Italic, Key, Layers,
-          Layout, Link, Link2, Linkedin, List, Loader, Lock, LogIn, LogOut, Mail,
-          Map, MapPin, Maximize, Menu, MessageCircle, MessageSquare, Mic, MicOff,
-          Minimize, Minus, MinusCircle, Monitor, Moon, MoreHorizontal, MoreVertical,
-          Music, Navigation, Package, Paperclip, Pause, PauseCircle, Percent, Phone,
-          PhoneCall, PhoneOff, Play, PlayCircle, Plus, PlusCircle, Power, Printer,
-          Radio, RefreshCcw, RefreshCw, Repeat, Rewind, Save, Scissors, Search,
-          Send, Server, Settings, Share, Share2, Shield, ShoppingBag, ShoppingCart,
-          Shuffle, Sidebar, SkipBack, SkipForward, Slack, Sliders, Smartphone,
-          Smile, Speaker, Square, Star, Sun, Tablet, Tag, Target, Terminal,
-          ThumbsDown, ThumbsUp, TrendingDown, TrendingUp, Trash, Trash2, Triangle,
-          Truck, Tv, Twitter, Type, Umbrella, Unlock, Upload, UploadCloud, User,
-          Users, Video, VideoOff, Volume, Volume1, Volume2, VolumeX, Watch, Wifi,
-          WifiOff, X, XCircle, XSquare, Youtube, Zap, ZoomIn, ZoomOut
-        } = LucideReact;
-        
-        // Date formatting utilities (simple replacements for date-fns)
         const format = arguments[3];
+        
+        // Dynamically destructure only what's imported
+        ${rechartsDestructure}
+        ${lucideDestructure}
         
         ${transformed}
         
         return ${componentName};
       `;
 
-      console.log("Executing component...");
+      console.log("Execution scope created");
 
-      // Simple date formatter as fallback
+      // Simple date formatter
       const simpleDateFormat = (date: Date | string | number, formatStr: string) => {
         const d = new Date(date);
         if (isNaN(d.getTime())) return String(date);
         
         const formats: Record<string, string> = {
           'yyyy': d.getFullYear().toString(),
+          'yy': String(d.getFullYear()).slice(-2),
+          'MMMM': d.toLocaleString('default', { month: 'long' }),
+          'MMM': d.toLocaleString('default', { month: 'short' }),
           'MM': String(d.getMonth() + 1).padStart(2, '0'),
+          'M': String(d.getMonth() + 1),
           'dd': String(d.getDate()).padStart(2, '0'),
+          'd': String(d.getDate()),
           'HH': String(d.getHours()).padStart(2, '0'),
+          'H': String(d.getHours()),
+          'hh': String(d.getHours() % 12 || 12).padStart(2, '0'),
+          'h': String(d.getHours() % 12 || 12),
           'mm': String(d.getMinutes()).padStart(2, '0'),
+          'm': String(d.getMinutes()),
           'ss': String(d.getSeconds()).padStart(2, '0'),
+          's': String(d.getSeconds()),
+          'a': d.getHours() >= 12 ? 'pm' : 'am',
+          'A': d.getHours() >= 12 ? 'PM' : 'AM',
         };
         
         let result = formatStr;
-        Object.entries(formats).forEach(([key, value]) => {
-          result = result.replace(key, value);
-        });
+        // Sort by length descending to replace longer patterns first
+        Object.entries(formats)
+          .sort((a, b) => b[0].length - a[0].length)
+          .forEach(([key, value]) => {
+            result = result.replace(new RegExp(key, 'g'), value);
+          });
         return result;
       };
 
@@ -149,6 +159,7 @@ export default function DynamicLessonRenderer({
 
     } catch (err: any) {
       console.error("Lesson Render Error:", err);
+      console.error("Stack:", err.stack);
       setError(err.message || "Unknown error occurred");
     }
   }, [code, lessonId]);
