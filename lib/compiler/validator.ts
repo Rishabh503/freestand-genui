@@ -1,6 +1,3 @@
-// lib/compiler/simple-validator.ts
-// A more practical validator focused on runtime safety, not strict TypeScript
-
 interface ValidationResult {
   isValid: boolean;
   errors: string[];

@@ -31,7 +31,7 @@ export default function Home() {
 
       if (data.success) {
         setResult(data);
-        // Redirect to lesson page after 2 seconds
+        
         setTimeout(() => {
           router.push(`/lessons/${data.lessonId}`);
         }, 2000);

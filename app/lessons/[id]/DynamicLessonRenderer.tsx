@@ -22,20 +22,20 @@ export default function DynamicLessonRenderer({
     try {
       if (!code) return;
 
-      console.log("Original code:", code);
+      // console.log("Original code:", code);
 
-      // Extract what's actually imported from the code
+      
       const importedFromLucide = new Set<string>();
       const importedFromRecharts = new Set<string>();
       
-      // Match: import { X, Y, Z } from 'lucide-react'
+      
       const lucideMatches = code.matchAll(/import\s*\{([^}]+)\}\s*from\s*['"]lucide-react['"]/g);
       for (const match of lucideMatches) {
         const items = match[1].split(',').map(s => s.trim());
         items.forEach(item => importedFromLucide.add(item));
       }
       
-      // Match: import { X, Y, Z } from 'recharts'
+
       const rechartsMatches = code.matchAll(/import\s*\{([^}]+)\}\s*from\s*['"]recharts['"]/g);
       for (const match of rechartsMatches) {
         const items = match[1].split(',').map(s => s.trim());
@@ -45,7 +45,7 @@ export default function DynamicLessonRenderer({
       console.log("Imported from Lucide:", Array.from(importedFromLucide));
       console.log("Imported from Recharts:", Array.from(importedFromRecharts));
 
-      // Extract component name
+      
       const match = code.match(/export\s+default\s+function\s+([A-Za-z0-9_]+)/);
       const componentName = match ? match[1] : null;
 
@@ -57,7 +57,7 @@ export default function DynamicLessonRenderer({
 
       console.log("Component name:", componentName);
 
-      // Remove ALL imports and exports
+      
       let cleaned = code
         .replace(/^["']use client["'];?\s*/gm, "")
         .replace(/import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)(?:\s*,\s*(?:\{[^}]*\}|\*\s+as\s+\w+|\w+))*\s+from\s+)?['"][^'"]+['"];?/gm, "")
@@ -68,7 +68,7 @@ export default function DynamicLessonRenderer({
 
       console.log("Cleaned code:", cleaned);
 
-      // Compile JSX + TypeScript → JS
+      
       let transformed = Babel.transform(cleaned, {
         presets: ["react", "typescript"],
         filename: "lesson.tsx",
@@ -76,7 +76,7 @@ export default function DynamicLessonRenderer({
 
       console.log("Transformed code:", transformed);
 
-      // Build dynamic destructuring for only what's imported
+      
       const lucideDestructure = importedFromLucide.size > 0
         ? `const { ${Array.from(importedFromLucide).join(', ')} } = LucideReact;`
         : '';
@@ -85,7 +85,7 @@ export default function DynamicLessonRenderer({
         ? `const { ${Array.from(importedFromRecharts).join(', ')} } = Recharts;`
         : '';
 
-      // Create execution scope with ONLY what's needed
+      
       const executionScope = `
         // React and hooks
         const React = arguments[0];

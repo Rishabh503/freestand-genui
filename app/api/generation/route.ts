@@ -1,4 +1,3 @@
-// app/api/generation/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { runLessonGenerator } from "@/lib/langchain/graph";
 
@@ -13,7 +12,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Run the LangGraph pipeline
+    //  the LangGraph pipeline
     const result = await runLessonGenerator(prompt);
 
     if (result.status === "completed" && result.lessonId) {

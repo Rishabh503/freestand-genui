@@ -51,28 +51,50 @@ export async function analyzePrompt(state: GraphStateType): Promise<Partial<Grap
 export async function generateUI(state: GraphStateType): Promise<Partial<GraphStateType>> {
   const systemPrompt = `You are an expert React/TypeScript UI generator for educational content.
 
+You are an expert React/TypeScript UI generator for educational content.
+
 CRITICAL RULES:
-1. Generate a COMPLETE, FUNCTIONAL React component in TypeScript
+1. Generate a COMPLETE, FUNCTIONAL React component in TypeScript.
 2. Import structure MUST be exactly like this:
    import React, { useState, useEffect } from 'react';
    import { IconName } from 'lucide-react';
    import { Chart, Component } from 'recharts';
    import { format } from 'date-fns';
+
 3. Component MUST be exported as: export default function LessonComponent()
-4. Use Tailwind CSS for ALL styling
-5. Make it HIGHLY INTERACTIVE with buttons, inputs, animations
-6. Include working examples, visualizations, or interactive elements
-7. Add clear instructions and explanations within the UI
-8. NO dangerous code: no eval, innerHTML, dangerouslySetInnerHTML
-9.The code has to be rendered in a next js so add "use client" at the top of the code always
-10. Return ONLY the complete TSX code in a markdown code block
+4. Use Tailwind CSS for ALL styling.
+5. Make it HIGHLY INTERACTIVE with buttons, inputs, animations.
+6. Include working examples, visualizations, or interactive elements.
+7. Add clear instructions and explanations within the UI.
 
+8. STRICT RULE: Do NOT add ANY hover effects anywhere.
+   - No hover:bg-...
+   - No hover:text-...
+   - No hover:opacity-...
+   - No hover:shadow-...
+   - No hover:scale-...
+   - No transition tied to hover
 
-IMPORTANT: Always use proper React and next js needed imports at the top of the file!
+9. Buttons must NEVER use a white background.
+   - Use pastel colors like bg-blue-200, bg-pink-200, bg-green-200, bg-yellow-200.
+   - Background must be light and bright.
+
+10. My primary background is white, so use a soft contrast palette.
+
+11. Focus heavily on written content and explanations.
+
+12. Add at least one animation using Tailwind classes (animate-bounce, animate-pulse, etc.), but NOT hover-based.
+
+13. NO dangerous code: no eval, innerHTML, dangerouslySetInnerHTML.
+
+14. The code must run in Next.js → add "use client" at the TOP.
+
+15. Return ONLY the complete TSX component inside a Markdown code block.
 
 LESSON TOPIC: ${state.lessonTitle}
 
-Generate a beautiful, interactive learning component now:`;
+Generate the full component now:
+`;
 
   const response = await model.invoke([
     { role: "system", content: systemPrompt },
@@ -89,7 +111,7 @@ Generate a beautiful, interactive learning component now:`;
 }
 
 export async function fixErrors(state: GraphStateType): Promise<Partial<GraphStateType>> {
-  // If errors are just type-related warnings, skip fixing
+
   const criticalErrors = state.validationErrors.filter(err => 
     !err.includes("Try `npm i --save-dev @types/") &&
     !err.includes("Could not find a declaration file") &&
@@ -97,7 +119,7 @@ export async function fixErrors(state: GraphStateType): Promise<Partial<GraphSta
     err !== "Component must have 'export default'"
   );
 
-  // If no critical errors, mark as valid
+  
   if (criticalErrors.length === 0) {
     return {
       isValid: true,
@@ -109,12 +131,18 @@ export async function fixErrors(state: GraphStateType): Promise<Partial<GraphSta
   const systemPrompt = `You are a code fixing expert. Your job is to fix TypeScript/React errors.
 
 INSTRUCTIONS:
-1. Review the code and the specific errors listed below
-2. Fix ONLY the errors - don't rewrite working parts
-3. Maintain the same functionality and structure
-4. Keep all imports as they are (react, lucide-react, recharts, date-fns)
-5. Make minimal changes - surgical fixes only
-6. Return ONLY the corrected TSX code, no markdown, no explanations
+1. Review the code and ONLY fix the specific errors listed.
+2. Make minimum changes — keep logic the same.
+3. Keep all imports exactly as they are.
+4. Do not rewrite working parts.
+
+5. STRICT STYLE RULES:
+   5.1 Remove ALL hover: classes from the code.
+       - Delete any class starting with "hover:"
+       - Remove hover:bg, hover:text, hover:opacity, hover:scale, hover:shadow, etc.
+   5.2 If any button uses bg-white, change it to a pastel color (bg-blue-200).
+   5.3 Ensure there are NO hover effects left anywhere in the file.
+   5.4 Keep all button styles light, bright, and without white backgrounds.
 
 CRITICAL ERRORS TO FIX:
 ${criticalErrors.join("\n")}
@@ -124,7 +152,8 @@ CURRENT CODE:
 ${state.tsxCode}
 \`\`\`
 
-Return ONLY the fixed TSX code:`;
+Return ONLY the corrected TSX code with NO extra text:
+`;
 
   const response = await model.invoke([
     { role: "system", content: systemPrompt },
