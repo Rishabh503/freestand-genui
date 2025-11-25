@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@babel/standalone": "^7.28.5",
+    "@clerk/nextjs": "^6.35.5",
     "@google/genai": "^1.29.0",
     "@langchain/core": "^1.0.4",
     "@langchain/google-genai": "^1.0.0",

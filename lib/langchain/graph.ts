@@ -1,4 +1,3 @@
-// lib/langchain/graph.ts
 import { StateGraph } from "@langchain/langgraph";
 import { GraphState } from "./state";
 import {
@@ -36,7 +35,7 @@ export function createLessonGeneratorGraph() {
   return workflow.compile();
 }
 
-export async function runLessonGenerator(prompt: string) {
+export async function runLessonGenerator(prompt: string, clerkId: string) {
   const graph = createLessonGeneratorGraph();
 
   const initialState = {
@@ -49,6 +48,7 @@ export async function runLessonGenerator(prompt: string) {
     lessonId: null,
     status: "initialized",
     errorMessage: null,
+    clerkId,
   };
 
   const result = await graph.invoke(initialState);

@@ -270,6 +270,7 @@ export async function saveLesson(state: GraphStateType): Promise<Partial<GraphSt
         title: state.lessonTitle,
         prompt: state.prompt,
         tsx_code: state.tsxCode,
+        clerk_id: state.clerkId,  // ← ADDED
         created_at: new Date().toISOString(),
       })
       .select()
@@ -288,6 +289,7 @@ export async function saveLesson(state: GraphStateType): Promise<Partial<GraphSt
     };
   }
 }
+
 
 export function shouldRetry(state: GraphStateType): string {
   if (state.status === "rejected" || state.status === "save_failed") {
