@@ -129,7 +129,7 @@ export default function Page() {
 
         <div className="grid grid-cols-1 gap-8">
           <div className="lg:col-span-2">
-            <div className="bg-white/6 border border-white/6 rounded-2xl p-6 shadow-xl">
+            <div className="bg-white/5 border border-white/6 rounded-2xl p-6 shadow-xl">
               <label className="text-xl font-semibold text-gray-300 mb-2 block">Lesson prompt</label>
               <textarea
                 value={prompt}

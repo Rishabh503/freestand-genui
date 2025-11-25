@@ -1,298 +1,202 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Copy, Download, Check, Loader2 } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Sun as SunIcon } from 'lucide-react';
+// These imports are mandated by the rules, even if not explicitly used in this specific lesson.
+import { Chart, Component } from 'recharts';
+import { format } from 'date-fns';
 
-export default function GeneratorPage() {
-  const router = useRouter();
-  const [prompt, setPrompt] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
-  const [stages, setStages] = useState<
-    { id: string; label: string; icon?: React.ReactNode; status: "idle" | "running" | "done" | "failed" }[]
-  >([
-    { id: "analyze", label: "Analyzing your request", status: "idle" },
-    { id: "generate", label: "Generating interactive UI", status: "idle" },
-    { id: "validate", label: "Validating TypeScript", status: "idle" },
-    { id: "fix", label: "Auto-fixing errors", status: "idle" },
-    { id: "save", label: "Saving lesson", status: "idle" },
-  ]);
-  const [generated, setGenerated] = useState<{ title: string; lessonId?: string; tsx: string } | null>(null);
+export default function LessonComponent() {
+  const [brightness, setBrightness] = useState(50);
+  const [quizAnswers, setQuizAnswers] = useState<{ [key: number]: string | null }>({});
+  const [quizFeedback, setQuizFeedback] = useState<{ [key: number]: boolean | null }>({});
 
-  useEffect(() => {
-    return () => {}; // no-op cleanup
-  }, []);
-
-  const reset = () => {
-    setError(null);
-    setGenerated(null);
-    setStages((s) => s.map((st) => ({ ...st, status: "idle" })));
-    setRunning(false);
-  };
-
-  const visibleDelay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
-  const fakeGenerate = async () => {
-    if (!prompt.trim()) {
-      setError("Please enter a lesson prompt");
-      return;
+  const quizQuestions = [
+    {
+      question: "What is the primary process that generates the Sun's energy?",
+      options: [
+        "Chemical combustion",
+        "Nuclear fission",
+        "Nuclear fusion",
+        "Gravitational collapse"
+      ],
+      correctAnswer: "Nuclear fusion"
+    },
+    {
+      question: "Which of the following is NOT a direct benefit of the Sun's energy on Earth?",
+      options: [
+        "Photosynthesis in plants",
+        "Driving weather patterns",
+        "Providing breathable oxygen directly",
+        "Heating the planet"
+      ],
+      correctAnswer: "Providing breathable oxygen directly"
+    },
+    {
+      question: "Approximately how long does it take for light from the Sun to reach Earth?",
+      options: [
+        "8 seconds",
+        "8 minutes",
+        "8 hours",
+        "8 days"
+      ],
+      correctAnswer: "8 minutes"
     }
-    setError(null);
-    setGenerated(null);
-    setRunning(true);
-    const delays = [1200, 1800, 1400, 2000, 1000];
-    try {
-      for (let i = 0; i < stages.length; i++) {
-        setStages((prev) => prev.map((p, idx) => (idx < i ? { ...p, status: "done" } : idx === i ? { ...p, status: "running" } : { ...p, status: "idle" })));
-        await visibleDelay(delays[i]);
-      }
-      setStages((s) => s.map((st) => ({ ...st, status: "done" })));
-      await visibleDelay(600);
-      const sampleTSX = buildSampleTSX(prompt);
-      setGenerated({
-        title: deriveTitle(prompt),
-        lessonId: "lesson_" + Math.random().toString(36).slice(2, 9),
-        tsx: sampleTSX,
-      });
-      setRunning(false);
-    } catch (e: any) {
-      setError("Generation failed. Try again.");
-      setStages((s) => s.map((st) => ({ ...st, status: "failed" })));
-      setRunning(false);
-    }
+  ];
+
+  const handleQuizAnswer = (questionIndex: number, selectedOption: string) => {
+    setQuizAnswers(prev => ({ ...prev, [questionIndex]: selectedOption }));
+    const isCorrect = selectedOption === quizQuestions[questionIndex].correctAnswer;
+    setQuizFeedback(prev => ({ ...prev, [questionIndex]: isCorrect }));
   };
 
-  const deriveTitle = (p: string) => {
-    const trimmed = p.trim();
-    if (!trimmed) return "Untitled Lesson";
-    return trimmed.length > 48 ? trimmed.slice(0, 45) + "..." : trimmed;
-  };
-
-  const buildSampleTSX = (p: string) => {
-    const safe = p.replace(/`/g, "'");
-    return `// LessonAI generated lesson for: ${safe}
-"use client";
-import React, { useState } from "react";
-
-export default function LessonDemo() {
-  const [value, setValue] = useState(50);
-  return (
-    <div className="p-6 rounded-xl bg-white/5 backdrop-blur-sm">
-      <h2 className="text-lg font-semibold mb-3">Interactive demo for: ${safe}</h2>
-      <input
-        aria-label="Demo slider"
-        type="range"
-        min="0"
-        max="100"
-        value={value}
-        onChange={(e) => setValue(Number(e.target.value))}
-        className="w-full"
-      />
-      <div className="mt-4 text-sm">Current value: {value}</div>
-    </div>
-  );
-}
-`;
-  };
-
-  const copyCode = async () => {
-    if (!generated) return;
-    await navigator.clipboard.writeText(generated.tsx);
-    alert("TSX copied to clipboard");
-  };
-
-  const downloadCode = () => {
-    if (!generated) return;
-    const blob = new Blob([generated.tsx], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${generated.title.replace(/\s+/g, "_") || "lesson"}.tsx`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
+  // Calculate SVG properties based on brightness
+  const sunGlowRadius = 5 + brightness / 10; // Blur radius increases
+  const sunGlowOpacity = 0.3 + brightness / 150; // Opacity increases
+  const sunShadowOffset = 5 + brightness / 20; // Shadow offset increases
+  const sunShadowOpacity = 0.2 + brightness / 200; // Shadow opacity increases
+  const sunCoreOpacity = 0.6 + brightness / 100; // Core opacity increases
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans">
-      <header className="w-full fixed top-0 left-0 z-40 bg-black/70 border-b border-white/8 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="text-2xl font-extrabold bg-gradient-to-b from-gray-300 to-gray-500 bg-clip-text text-transparent">
-              LessonAI
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-orange-50 p-6 font-sans text-gray-800">
+      {/* Topic Name */}
+      <h1 className="text-5xl font-extrabold text-center mb-10 pt-4 text-orange-700 tracking-tight">
+        The Sun: Our Star
+      </h1>
+
+      {/* 1. Description */}
+      <section className="bg-yellow-100 p-8 rounded-3xl shadow-xl mb-12 max-w-4xl mx-auto border border-yellow-200">
+        <h2 className="text-3xl font-bold text-yellow-800 mb-4">What is The Sun?</h2>
+        <p className="text-lg leading-relaxed text-yellow-700">
+          The Sun is the star at the center of our solar system. It is a nearly perfect sphere of hot plasma, heated to incandescence by nuclear fusion reactions in its core. This incredible process converts hydrogen into helium, releasing an enormous amount of energy. This energy is radiated outward as light and heat, making life on Earth possible. The Sun's immense gravitational pull holds all the planets, including Earth, in their orbits, ensuring the stability of our solar system.
+        </p>
+      </section>
+
+      {/* 2. Real-life Usage */}
+      <section className="bg-orange-100 p-8 rounded-3xl shadow-xl mb-12 max-w-4xl mx-auto border border-orange-200">
+        <h2 className="text-3xl font-bold text-orange-800 mb-4">The Sun's Impact on Life</h2>
+        <p className="text-lg leading-relaxed text-orange-700">
+          The Sun is absolutely vital for all life on Earth. It provides the light and warmth necessary for plants to grow through photosynthesis, forming the base of nearly all food chains. Its energy drives Earth's climate and weather patterns, powers the water cycle, and is the ultimate source of most renewable energy, like solar power. Without the Sun, Earth would be a frozen, dark, and lifeless planet, making it the most important celestial body for our existence.
+        </p>
+      </section>
+
+      <div className="flex flex-col lg:flex-row gap-8 max-w-6xl mx-auto mb-12">
+        {/* 3. Animated Component */}
+        <section className="bg-pink-100 p-8 rounded-3xl shadow-xl flex-1 flex flex-col items-center justify-center border border-pink-200">
+          <h2 className="text-3xl font-bold text-pink-800 mb-6">Animated Sun</h2>
+          <div className="relative w-64 h-64 flex items-center justify-center">
+            {/* Outer Glow - animate-pulse */}
+            <div className="absolute w-full h-full rounded-full bg-yellow-300 opacity-70 animate-pulse duration-[1500ms] ease-in-out"></div>
+            {/* Main Sun Body */}
+            <div className="relative w-48 h-48 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 shadow-lg flex items-center justify-center">
+              {/* Inner Core - animate-spin */}
+              <div className="absolute w-24 h-24 rounded-full bg-yellow-200 opacity-80 animate-spin duration-[8000ms] infinite"></div>
+              {/* Sun Icon */}
+              <SunIcon className="w-20 h-20 text-orange-700 z-10" />
             </div>
-            <div className="text-xs text-gray-400 tracking-widest">AI Lesson Generator</div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push("/")}
-              className="px-4 py-2 rounded-full bg-white text-black font-semibold"
-            >
-              Home
-            </button>
-            <button onClick={() => alert("Sign-In placeholder")} className="px-4 py-2 rounded-full bg-blue-200 text-black font-medium">
-              Sign In
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto pt-28 px-6 pb-20">
-        <section className="text-center mb-12">
-          <h1 className="text-5xl md:text-6xl font-extrabold bg-gradient-to-b from-gray-200 to-gray-500 bg-clip-text text-transparent">
-            AI Lesson Generator
-          </h1>
-          <p className="mt-3 text-gray-400 max-w-2xl mx-auto">
-            Describe your topic and our AI will build a complete interactive lesson for you. Each stage runs in sequence so you can watch the generator do its work.
+          <p className="mt-6 text-pink-700 text-center text-lg">
+            Observe the Sun's radiant energy! The outer glow gently pulses, while its core slowly spins, symbolizing the dynamic processes within.
           </p>
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <div className="bg-white/6 border border-white/6 rounded-2xl p-6 shadow-xl">
-              <label className="text-sm text-gray-300 mb-2 block">Lesson prompt</label>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Enter your lesson topic, like 'Introduction to Photosynthesis for 5th graders'..."
-                className="w-full bg-black/60 border border-white/6 p-4 rounded-lg text-white resize-none focus:outline-none"
-                rows={5}
+        {/* 4. Interactive Component */}
+        <section className="bg-blue-100 p-8 rounded-3xl shadow-xl flex-1 border border-blue-200">
+          <h2 className="text-3xl font-bold text-blue-800 mb-6">Interactive Sun Brightness</h2>
+          <div className="flex flex-col items-center justify-center mb-6">
+            <label htmlFor="brightness-slider" className="text-xl font-medium text-blue-700 mb-3">
+              Adjust Sun Brightness: <span className="font-bold">{brightness}%</span>
+            </label>
+            <input
+              id="brightness-slider"
+              type="range"
+              min="0"
+              max="100"
+              value={brightness}
+              onChange={(e) => setBrightness(Number(e.target.value))}
+              className="w-full h-2 bg-blue-300 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              aria-label="Sun Brightness Slider"
+            />
+          </div>
+
+          <div className="flex items-center justify-center h-64 relative">
+            <svg viewBox="0 0 100 100" className="w-full h-full max-w-xs">
+              <defs>
+                <filter id="sunGlow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation={sunGlowRadius} result="blur" />
+                  <feFlood floodColor="orange" floodOpacity={sunGlowOpacity} result="color" />
+                  <feComposite in="color" in2="blur" operator="in" result="glow" />
+                  <feMerge>
+                    <feMergeNode in="glow" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+                <filter id="sunShadow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feDropShadow dx={sunShadowOffset / 5} dy={sunShadowOffset / 5} stdDeviation={sunShadowOffset / 2} floodColor="rgba(0,0,0,0.5)" floodOpacity={sunShadowOpacity} />
+                </filter>
+                <radialGradient id="sunGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                  <stop offset="0%" stopColor={`hsl(40, ${70 + brightness / 3}%, ${60 + brightness / 4}%)`} />
+                  <stop offset="70%" stopColor={`hsl(20, ${60 + brightness / 4}%, ${50 + brightness / 5}%)`} />
+                  <stop offset="100%" stopColor={`hsl(0, ${50 + brightness / 5}%, ${40 + brightness / 6}%)`} />
+                </radialGradient>
+              </defs>
+
+              {/* Sun body with gradient, glow, and shadow */}
+              <circle
+                cx="50"
+                cy="50"
+                r="35"
+                fill="url(#sunGradient)"
+                filter="url(#sunGlow) url(#sunShadow)"
+                className={brightness > 70 ? 'animate-pulse duration-[1500ms]' : ''} // Add pulse animation at higher brightness
               />
-
-              <div className="mt-5 flex items-center gap-3">
-                <button
-                  onClick={fakeGenerate}
-                  disabled={running}
-                  className="flex items-center gap-2 bg-white text-black px-5 py-2 rounded-full font-semibold shadow-sm disabled:opacity-50"
-                >
-                  {running ? (
-                    <>
-                      <Loader2 className="animate-spin" size={16} />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <span>Generate Lesson</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  onClick={reset}
-                  className="px-4 py-2 rounded-full bg-blue-200 text-black font-medium"
-                >
-                  Reset
-                </button>
-              </div>
-
-              <div className="mt-8">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-2 h-8 bg-gradient-to-b from-pink-300 to-yellow-200 rounded-full animate-pulse" />
-                  <div>
-                    <div className="text-xs text-gray-400 uppercase tracking-wider">Generation Progress</div>
-                    <div className="text-sm text-gray-300">Watch each stage complete in order</div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {stages.map((s, idx) => (
-                    <div key={s.id} className="flex items-start gap-4">
-                      <div className="flex flex-col items-center">
-                        <div
-                          className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                            s.status === "done" ? "bg-green-400" : s.status === "running" ? "bg-yellow-400 animate-pulse" : "bg-white/10"
-                          }`}
-                          aria-hidden
-                        >
-                          {s.status === "done" ? <Check size={12} className="text-black" /> : s.status === "running" ? <Loader2 size={12} className="text-black animate-spin" /> : null}
-                        </div>
-                        {idx < stages.length - 1 && <div className="w-px h-full bg-white/6 mt-2" />}
-                      </div>
-
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm font-medium">
-                            <span className={s.status === "done" ? "text-green-300" : s.status === "running" ? "text-yellow-300" : "text-gray-300"}>
-                              {s.label}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {s.status === "done" ? "Done" : s.status === "running" ? "In progress" : "Pending"}
-                          </div>
-                        </div>
-
-                        <div className="mt-2 h-2 bg-white/6 rounded-full overflow-hidden">
-                          <div
-                            className={`h-2 rounded-full transition-all duration-700 ${
-                              s.status === "done" ? "bg-green-400 w-full" : s.status === "running" ? "bg-yellow-400 w-3/4 animate-pulse" : "bg-white/10 w-0"
-                            }`}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <p className="text-sm text-gray-500 mt-4 text-center">
-                  Stages show sequential progress with slight delays so you can visually confirm each step.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 bg-white/5 border border-white/6 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold mb-3">Generator Output</h3>
-
-              {!generated && (
-                <div className="text-gray-400">
-                  No lesson generated yet. Click <span className="text-white">Generate Lesson</span> to start.
-                </div>
-              )}
-
-              {generated && (
-                <div>
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <div>
-                      <div className="text-sm text-gray-400">Title</div>
-                      <div className="text-white font-semibold">{generated.title}</div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button onClick={copyCode} className="px-3 py-2 rounded-full bg-blue-200 text-black flex items-center gap-2">
-                        <Copy size={14} /> Copy TSX
-                      </button>
-                      <button onClick={downloadCode} className="px-3 py-2 rounded-full bg-pink-200 text-black flex items-center gap-2">
-                        <Download size={14} /> Download
-                      </button>
-                      <button onClick={() => router.push(`/lessons/${generated.lessonId}`)} className="px-3 py-2 rounded-full bg-white text-black font-semibold">
-                        View Lesson
-                      </button>
-                    </div>
-                  </div>
-
-                  <pre className="bg-black/70 border border-white/6 rounded-lg p-4 text-xs overflow-auto max-h-72">
-                    <code className="whitespace-pre-wrap break-all">{generated.tsx}</code>
-                  </pre>
-                </div>
-              )}
-            </div>
+              {/* Inner core element, slightly animated */}
+              <circle
+                cx="50"
+                cy="50"
+                r="15"
+                fill={`rgba(255, 240, 180, ${sunCoreOpacity})`}
+                className="animate-spin duration-[6000ms] infinite"
+              />
+            </svg>
           </div>
+          <p className="mt-6 text-blue-700 text-center text-lg">
+            Move the slider to adjust the Sun's brightness. Notice how the color, glow intensity, and shadow depth change in real-time, simulating its powerful luminosity! The Sun also subtly pulses at higher brightness levels.
+          </p>
+        </section>
+      </div>
 
-          <div className="lg:col-span-1">
-            <div className="bg-gradient-to-b from-black/60 to-black/40 border border-white/6 rounded-2xl p-6 shadow-xl h-full flex flex-col items-center justify-center">
-              <img src="/mnt/data/dbd7026e-ae5f-48ed-943c-ebcebdc495c6.png" alt="hero" className="w-40 h-40 object-cover rounded-lg shadow-lg mb-6" />
-              <div className="text-center">
-                <div className="text-sm text-gray-400">Design inspiration</div>
-                <div className="mt-2 text-white font-semibold">akxr labs style</div>
-                <p className="text-xs text-gray-400 mt-3 max-w-[220px]">
-                  Dark, minimal, elegant. Buttons use soft pastel accents where needed. Stages have visible animations and clear progress indicators.
-                </p>
-              </div>
+      {/* 5. Quiz Section */}
+      <section className="bg-green-100 p-8 rounded-3xl shadow-xl max-w-4xl mx-auto border border-green-200">
+        <h2 className="text-3xl font-bold text-green-800 mb-6 text-center">Quiz Time!</h2>
+        {quizQuestions.map((q, qIndex) => (
+          <div key={qIndex} className="mb-8 p-6 bg-green-50 rounded-2xl shadow-md border border-green-200">
+            <p className="text-xl font-semibold text-green-700 mb-4">{qIndex + 1}. {q.question}</p>
+            <div className="space-y-3">
+              {q.options.map((option, oIndex) => (
+                <button
+                  key={oIndex}
+                  onClick={() => handleQuizAnswer(qIndex, option)}
+                  className={`block w-full text-left py-3 px-5 rounded-lg text-lg transition-all duration-300
+                    ${quizAnswers[qIndex] === option
+                      ? (quizFeedback[qIndex] === true ? 'bg-green-200 text-green-800 border-green-400' : 'bg-red-200 text-red-800 border-red-400')
+                      : 'bg-blue-200 text-blue-800 border-blue-300'
+                    } border-2`}
+                  aria-label={`Select ${option} for question ${qIndex + 1}`}
+                  disabled={quizFeedback[qIndex] !== null}
+                >
+                  {option}
+                </button>
+              ))}
             </div>
+            {quizFeedback[qIndex] !== null && (
+              <p className={`mt-4 text-lg font-medium ${quizFeedback[qIndex] ? 'text-green-600' : 'text-red-600'}`}>
+                {quizFeedback[qIndex] ? "Correct!" : `Incorrect. The correct answer was: ${q.correctAnswer}`}
+              </p>
+            )}
           </div>
-        </div>
-      </main>
+        ))}
+      </section>
     </div>
   );
 }

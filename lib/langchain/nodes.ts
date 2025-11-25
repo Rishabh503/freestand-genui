@@ -1,4 +1,3 @@
-// lib/langchain/nodes.ts
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { GraphStateType } from "./state";
 import { validateTSXCode, extractComponentCode } from "../compiler/validator";
@@ -6,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const model = new ChatGoogleGenerativeAI({
   apiKey: process.env.GEMINI_KEY!,
-  model: "gemini-2.0-flash",
+  model: "gemini-2.5-flash",
   temperature: 0.7,
 });
 
@@ -50,6 +49,7 @@ export async function analyzePrompt(state: GraphStateType): Promise<Partial<Grap
 
 
 const layout = `
+0 Add the Name of the topic at the top first 
 1 A detailed description of the topic (5–6 lines).
 2 A clear section describing real-life usage of the topic.
 3 One mandatory animated component using Tailwind animations (animate-bounce, animate-pulse, animate-spin) OR an SVG/canvas animation that is clearly visible (not micro).
@@ -118,11 +118,22 @@ You are an expert React + TypeScript + Tailwind UI generator for educational les
 
 CRITICAL RULES (STRONG ENFORCEMENT):
 1. Generate a COMPLETE, VALID React component in TypeScript.
-2. Imports MUST be exactly:
+
+2. IMPORTS MUST BE EXACTLY IN THIS FORMAT (NO ALIASES, NO "AS" KEYWORD):
+   ✅ CORRECT:
    import React, { useState, useEffect } from 'react';
-   import { IconName } from 'lucide-react';
-   import { Chart, Component } from 'recharts';
+   import { Sun, Moon, Star } from 'lucide-react';
+   import { LineChart, BarChart, PieChart } from 'recharts';
    import { format } from 'date-fns';
+
+   ❌ WRONG - NEVER DO THIS:
+   import { Sun as SunIcon } from 'lucide-react';
+   import { Moon as MoonIcon } from 'lucide-react';
+   import * as Icons from 'lucide-react';
+   
+   ABSOLUTELY NO IMPORT ALIASES OR "AS" KEYWORD ALLOWED IN ANY IMPORT STATEMENT.
+   Each icon must be imported by its exact name without renaming.
+   If you need multiple icons, import them in a single line: import { Icon1, Icon2, Icon3 } from 'lucide-react';
 
 3. The component MUST be exported as:
    export default function LessonComponent()
@@ -160,9 +171,16 @@ ${layout}
 
 12. SECURITY: NO dangerous code (NO innerHTML, NO dangerouslySetInnerHTML, NO eval).
 
-13. Include working examples inside the component. Show initial default values and usage hints.
+13. CRITICAL IMPORT RULE - READ CAREFULLY:
+    - NEVER use "as" keyword in imports
+    - NEVER rename imports with aliases
+    - Import each icon/component by its exact original name
+    - Example: If you need a Sun icon, write: import { Sun } from 'lucide-react' and use <Sun /> in JSX
+    - If the name conflicts with a variable, choose a different variable name, NOT a different import name
 
-14. Return ONLY the full TSX component inside a Markdown code block. Do not return analysis or any extra text.
+14. Include working examples inside the component. Show initial default values and usage hints.
+
+15. Return ONLY the full TSX component inside a Markdown code block. Do not return analysis or any extra text.
 
 ${specialHint}
 
@@ -218,6 +236,31 @@ INSTRUCTIONS:
    5.4 Ensure animations required by the layout are present (if the component removed them, restore at least two visible animations: one larger SVG-based animation + one UI animate-pulse/animate-bounce).
    5.5 Ensure pastel backgrounds exist for at least five UI elements (cards, headers, inputs, quiz area, interactive preview).
 
+6. CRITICAL IMPORT RULE (MANDATORY):
+   6.1 NEVER use "as" keyword in any import statement
+   6.2 NEVER rename imports with aliases
+   6.3 If you see imports like:
+       import { Sun as SunIcon } from 'lucide-react'
+       
+       FIX IT TO:
+       import { Sun } from 'lucide-react'
+       
+       AND UPDATE ALL USAGE IN THE CODE:
+       Change <SunIcon /> to <Sun />
+       Change SunIcon variable references to Sun
+   
+   6.4 Each lucide-react icon must be imported with its exact original name
+   6.5 If there's a variable name conflict, rename the VARIABLE not the IMPORT
+   
+   EXAMPLE FIX:
+   ❌ WRONG:
+   import { Sun as SunIcon, Moon as MoonIcon } from 'lucide-react';
+   <SunIcon className="..." />
+   
+   ✅ CORRECT:
+   import { Sun, Moon } from 'lucide-react';
+   <Sun className="..." />
+
 CRITICAL ERRORS TO FIX:
 ${criticalErrors.join("\n")}
 
@@ -270,7 +313,7 @@ export async function saveLesson(state: GraphStateType): Promise<Partial<GraphSt
         title: state.lessonTitle,
         prompt: state.prompt,
         tsx_code: state.tsxCode,
-        clerk_id: state.clerkId,  // ← ADDED
+        clerk_id: state.clerkId,
         created_at: new Date().toISOString(),
       })
       .select()
