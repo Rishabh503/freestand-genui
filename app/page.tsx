@@ -16,13 +16,14 @@ export default function HomePage() {
         <p className="text-gray-400 tracking-widest mt-4">
           create interactive lesson to start a topic with
         </p>
+        
 
         {/* CTA Button */}
         <Link
           href="/generator"
           className="mt-8 bg-white text-black px-8 py-3 rounded-full font-semibold tracking-wide"
         >
-          Lets Start !
+          Lets Start 
         </Link>
       </div>
     </div>
