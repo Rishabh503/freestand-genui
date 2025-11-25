@@ -48,53 +48,126 @@ export async function analyzePrompt(state: GraphStateType): Promise<Partial<Grap
   }
 }
 
+
+const layout = `
+1 A detailed description of the topic (5–6 lines).
+2 A clear section describing real-life usage of the topic.
+3 One mandatory animated component using Tailwind animations (animate-bounce, animate-pulse, animate-spin) OR an SVG/canvas animation that is clearly visible (not micro).
+   - AT LEAST TWO visible animation cues must exist somewhere (e.g., pulsing glow + slow spin).
+   - One animated element must be SVG or canvas-based so animation is visually crisp.
+4 One mandatory INTERACTIVE component directly connected to the specific topic:
+   - The interaction must visually or logically demonstrate the topic.
+   - Interaction must NOT be generic. It must deeply match the topic.
+   - The interactive component MUST include controls (slider, buttons, color picker, draggable element) and update the visual in real-time.
+   Examples:
+     • Sun → brightness/size slider changing a glowing SVG sun with gradient and shadow
+     • Moon → phase rotation slider that updates an SVG moon
+     • Trees → growth height slider that animates an SVG/HTML plant growing
+     • Colors → live color mixer with 3 sliders and a preview card using gradient
+     • Physics → gravity toggle + draggable object that falls with easing
+     • Math → live calculator with formula visualizer
+     • Algorithms → step-by-step visualizer with play/pause controls
+     • Databases → input → shows index/hash jump visual
+     • Networking → packet flow mini-visual with animated packets
+     • Encryption → input → animated transform showing encryption steps
+5 A quiz with 3 questions + instant feedback based on user answers.
+6 Buttons must use pastel colors (bg-blue-200, bg-pink-200, bg-green-200, bg-yellow-200) and never white.
+7 At least five UI elements (cards, sections, containers, sidebars, quiz area) must use soft pastel backgrounds.
+8 Use pastel accents in text, borders, and SVG fills. Provide at least 5 distinct pastel shades across the UI.
+9 Ensure animations are visible on light (white) backgrounds: use glows, shadows, SVG fills, larger durations (>= 600ms) so they're noticeable.
+10 Absolutely no hover effects anywhere.
+`;
+
+
+function buildSpecialHint(prompt: string) {
+  const lc = prompt.toLowerCase();
+  if (lc.includes("sun") || lc.includes("light") || lc.includes("brightness") || lc.includes("star")) {
+    return "SPECIAL_INTERACTIVE_HINT: Create a glowing SVG sun with a brightness slider (0–100) that updates SVG fill, glow, and a subtle animate-pulse on higher brightness. Use a warm pastel gradient and visible shadow.";
+  }
+  if (lc.includes("moon") || lc.includes("phases")) {
+    return "SPECIAL_INTERACTIVE_HINT: Create an SVG moon phase visual with a slider to rotate/change phase. Animate transition between phases and use cool pastel fills.";
+  }
+  if (lc.includes("tree") || lc.includes("plant") || lc.includes("growth")) {
+    return "SPECIAL_INTERACTIVE_HINT: Create a plant SVG that grows taller when a slider increases. Animate stem growth and leaf fade-in, show numeric height.";
+  }
+  if (lc.includes("color") || lc.includes("rgb") || lc.includes("hsl") || lc.includes("palette")) {
+    return "SPECIAL_INTERACTIVE_HINT: Create a 3-slider color mixer (R, G, B) with a live preview card and an animated gradient background preview. Use pastel color outputs and show HEX value.";
+  }
+  if (lc.includes("gravity") || lc.includes("physics") || lc.includes("motion")) {
+    return "SPECIAL_INTERACTIVE_HINT: Create a small physics demo: a draggable object with gravity toggle and 'drop' button. Animate falling with easing and show velocity numeric readout.";
+  }
+  if (lc.includes("sort") || lc.includes("sorting") || lc.includes("algorithm")) {
+    return "SPECIAL_INTERACTIVE_HINT: Create a step-by-step sorting visualizer with play/pause, step forward/back controls, and animated element swaps.";
+  }
+  if (lc.includes("graph") || lc.includes("chart") || lc.includes("plot") || lc.includes("recharts")) {
+    return "SPECIAL_INTERACTIVE_HINT: Create a small graph builder: user inputs numbers (comma separated) and a Recharts line/bar updates live. Use pastel strokes and animated points.";
+  }
+  if (lc.includes("encrypt") || lc.includes("encryption") || lc.includes("cipher")) {
+    return "SPECIAL_INTERACTIVE_HINT: Create an input that shows live encrypted output with animated transformation boxes showing steps (substitution/permutation).";
+  }
+  
+  return "SPECIAL_INTERACTIVE_HINT: Create a topic-relevant interactive widget: choose an appropriate visual (slider, color mixer, draggable demo, or mini-graph) that updates a clear, visible SVG/HTML visual in real-time. Ensure controls are labeled and animations are visible (>=600ms).";
+}
+
 export async function generateUI(state: GraphStateType): Promise<Partial<GraphStateType>> {
-  const systemPrompt = `You are an expert React/TypeScript UI generator for educational content.
+ 
+  const specialHint = buildSpecialHint(state.prompt || state.lessonTitle || "");
 
-You are an expert React/TypeScript UI generator for educational content.
+  const systemPrompt = `
+You are an expert React + TypeScript + Tailwind UI generator for educational lessons.
 
-CRITICAL RULES:
-1. Generate a COMPLETE, FUNCTIONAL React component in TypeScript.
-2. Import structure MUST be exactly like this:
+CRITICAL RULES (STRONG ENFORCEMENT):
+1. Generate a COMPLETE, VALID React component in TypeScript.
+2. Imports MUST be exactly:
    import React, { useState, useEffect } from 'react';
    import { IconName } from 'lucide-react';
    import { Chart, Component } from 'recharts';
    import { format } from 'date-fns';
 
-3. Component MUST be exported as: export default function LessonComponent()
-4. Use Tailwind CSS for ALL styling.
-5. Make it HIGHLY INTERACTIVE with buttons, inputs, animations.
-6. Include working examples, visualizations, or interactive elements.
-7. Add clear instructions and explanations within the UI.
+3. The component MUST be exported as:
+   export default function LessonComponent()
 
-8. STRICT RULE: Do NOT add ANY hover effects anywhere.
-   - No hover:bg-...
-   - No hover:text-...
-   - No hover:opacity-...
-   - No hover:shadow-...
-   - No hover:scale-...
-   - No transition tied to hover
+4. Add "use client" at the VERY TOP.
 
-9. Buttons must NEVER use a white background.
-   - Use pastel colors like bg-blue-200, bg-pink-200, bg-green-200, bg-yellow-200.
-   - Background must be light and bright.
+5. Use Tailwind CSS for ALL styling. No inline styles. No external CSS files.
 
-10. My primary background is white, so use a soft contrast palette.
+6. Follow this mandatory structure (this is REQUIRED):
+${layout}
 
-11. Focus heavily on written content and explanations.
+7. INTERACTIVE COMPONENT RULE (REQUIRED):
+   You MUST create one interactive element that is uniquely designed for the lesson topic.
+   - The interactive element must include labeled controls (slider, buttons, color pickers, input).
+   - The element must update a visible SVG/HTML visual in REAL TIME.
+   - The visual must be clearly visible on a white background (use pastel fills, glows, shadows).
+   - Provide textual explanation of how the controls affect the visual.
 
-12. Add at least one animation using Tailwind classes (animate-bounce, animate-pulse, etc.), but NOT hover-based.
+8. VIVID COLOR RULE (REQUIRED):
+   - Use at least 5 distinct pastel shades across the UI (cards, buttons, SVG fills, borders, quiz area).
+   - All buttons must use pastel backgrounds (bg-blue-200, bg-pink-200, bg-green-200, bg-yellow-200).
+   - No button may use bg-white or text-white on white backgrounds that reduces contrast.
 
-13. NO dangerous code: no eval, innerHTML, dangerouslySetInnerHTML.
+9. ANIMATION VISIBILITY RULE (REQUIRED):
+   - Provide at least TWO visible animations (e.g. animate-pulse on a glow + animate-spin on an icon).
+   - Use at least one SVG or canvas animation (not just tiny text pulses).
+   - Animations should have durations >= 600ms so they are noticeable.
 
-14. The code must run in Next.js → add "use client" at the TOP.
+10. ACCESSIBILITY & CLARITY:
+   - Add aria-labels for interactive controls.
+   - Use readable font sizes and clear labels.
 
-15. Return ONLY the complete TSX component inside a Markdown code block.
+11. STRICT: NO HOVER EFFECTS anywhere.
+    - Remove any class that starts with "hover:".
 
-LESSON TOPIC: ${state.lessonTitle}
+12. SECURITY: NO dangerous code (NO innerHTML, NO dangerouslySetInnerHTML, NO eval).
 
-Generate the full component now:
-`;
+13. Include working examples inside the component. Show initial default values and usage hints.
+
+14. Return ONLY the full TSX component inside a Markdown code block. Do not return analysis or any extra text.
+
+${specialHint}
+
+LESSON TOPIC: ${state.lessonTitle || state.prompt}
+  `;
 
   const response = await model.invoke([
     { role: "system", content: systemPrompt },
@@ -142,7 +215,8 @@ INSTRUCTIONS:
        - Remove hover:bg, hover:text, hover:opacity, hover:scale, hover:shadow, etc.
    5.2 If any button uses bg-white, change it to a pastel color (bg-blue-200).
    5.3 Ensure there are NO hover effects left anywhere in the file.
-   5.4 Keep all button styles light, bright, and without white backgrounds.
+   5.4 Ensure animations required by the layout are present (if the component removed them, restore at least two visible animations: one larger SVG-based animation + one UI animate-pulse/animate-bounce).
+   5.5 Ensure pastel backgrounds exist for at least five UI elements (cards, headers, inputs, quiz area, interactive preview).
 
 CRITICAL ERRORS TO FIX:
 ${criticalErrors.join("\n")}

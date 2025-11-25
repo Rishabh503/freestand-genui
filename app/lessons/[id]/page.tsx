@@ -10,7 +10,7 @@ const supabase = createClient(
 
 export default async function LessonPage({ params }: { params: { id: string } }) {
   const gotId=await params
-  console.log(gotId)
+//   console.log(gotId)
 
   
 
