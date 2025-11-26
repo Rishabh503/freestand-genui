@@ -192,13 +192,16 @@ export default function Page() {
   <span className="font-medium">Try Now</span>
 </div>
              <div className="text-6xl">
-               <TextType
-                text={WaitingArray}
-                typingSpeed={75}
-                pauseDuration={1500}
-                showCursor={true}
-                cursorCharacter="|"
-              />
+              <TextType
+  text={WaitingArray}
+  typingSpeed={75}
+  pauseDuration={1500}
+  showCursor={true}
+  cursorCharacter="|"
+  variableSpeed={false}
+  onSentenceComplete={() => {}}
+/>
+
              </div>
               <p className="text-gray-500 mt-2 max-w-sm">
                 Start by entering a topic on the left. We'll generate a full
