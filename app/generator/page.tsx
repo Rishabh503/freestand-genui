@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { Check, Loader2 } from "lucide-react";
-
+import TextType from "../../components/TextType";
+import image from "../../public/image.png";
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -12,12 +13,23 @@ const supabase = createClient(
 
 export default function Page() {
   const router = useRouter();
+
   const [prompt, setPrompt] = useState("");
+  const [audience, setAudience] = useState("");
+  const [tone, setTone] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [showProgress, setShowProgress] = useState(false);
+
   const [stages, setStages] = useState<
-    { id: string; label: string; status: "idle" | "running" | "done" | "failed" }[]
+    {
+      id: string;
+      label: string;
+      status: "idle" | "running" | "done" | "failed";
+    }[]
   >([
     { id: "analyze", label: "Analyzing your request", status: "idle" },
     { id: "generate", label: "Generating interactive UI", status: "idle" },
@@ -26,21 +38,22 @@ export default function Page() {
     { id: "save", label: "Saving lesson", status: "idle" },
   ]);
 
+
+  const WaitingArray=["Tell Me About graphs ","Lets study about Sun","Help me Visualize Arrays ", " What is Mean , Mode , Median"]
   const visibleDelay = (ms: number) =>
-    new Promise((resolve) => setTimeout(resolve, ms));
+    new Promise((res) => setTimeout(res, ms));
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      setError("Please enter a prompt");
+      setError("Please enter a lesson topic");
       return;
     }
 
-    setLoading(true);
+    setShowProgress(true);
     setResult(null);
     setError(null);
-    setStages((s) => s.map((st) => ({ ...st, status: "idle" })));
 
-    const delays = [1200, 1800, 1400, 2000, 1000];
+    const delays = [1200, 1700, 1500, 2000, 1200];
 
     try {
       for (let i = 0; i < stages.length; i++) {
@@ -53,13 +66,14 @@ export default function Page() {
               : { ...p, status: "idle" }
           )
         );
+
         await visibleDelay(delays[i]);
       }
 
       const res = await fetch("/api/generation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, audience, tone }),
       });
 
       const data = await res.json();
@@ -70,14 +84,14 @@ export default function Page() {
 
         setTimeout(() => {
           router.push(`/lessons/${data.lessonId}`);
-        }, 2000);
+        }, 1500);
       } else {
         setStages((s) => s.map((st) => ({ ...st, status: "failed" })));
-        setError(data.error || "Failed to generate lesson");
+        setError(data.error || "Something went wrong");
       }
     } catch (err: any) {
       setStages((s) => s.map((st) => ({ ...st, status: "failed" })));
-      setError(err.message || "An error occurred");
+      setError(err.message || "Unexpected Error");
     } finally {
       setLoading(false);
     }
@@ -86,194 +100,177 @@ export default function Page() {
   const reset = () => {
     setError(null);
     setResult(null);
+    setPrompt("");
+    setAudience("");
+    setTone("");
+    setShowProgress(false); // HIDE right panel again
     setStages((s) => s.map((st) => ({ ...st, status: "idle" })));
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans">
-      <header className="w-full fixed top-0 left-0 z-40 bg-black/70 border-b border-white/8 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="text-2xl font-extrabold bg-gradient-to-b from-gray-300 to-gray-500 bg-clip-text text-transparent">
-              LessonAI
-            </div>
-            <div className="text-xs text-gray-400 tracking-widest">AI Lesson Generator</div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push("/")}
-              className="px-4 py-2 rounded-full bg-white text-black font-semibold"
-            >
-              Home
-            </button>
-            <button
-              onClick={() => alert("Sign-In placeholder")}
-              className="px-4 py-2 rounded-full bg-blue-200 text-black font-medium"
-            >
-              Sign In
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto pt-28 px-6 pb-20">
-        <section className="text-center mb-12">
-          <h1 className="text-5xl md:text-6xl font-extrabold bg-gradient-to-b from-gray-200 to-gray-500 bg-clip-text text-transparent">
-            AI Lesson Generator
+    <div className="min-h-screen bg-black text-white flex flex-col">
+      <main className="flex flex-1 pt-24">
+        {/* LEFT PANEL */}
+        <div className="w-full lg:w-1/2 border-r border-white/10 p-10">
+          <h1 className="text-4xl font-extrabold mb-4 bg-gradient-to-r from-gray-200 to-gray-500 bg-clip-text text-transparent">
+            Create a Lesson
           </h1>
-          <p className="mt-3 text-gray-400 max-w-2xl mx-auto">
-            Describe your topic and our AI will build a complete interactive lesson for you.
+          <p className="text-gray-400 mb-10">
+            Describe the topic and customize how you want the lesson.
           </p>
-        </section>
 
-        <div className="grid grid-cols-1 gap-8">
-          <div className="lg:col-span-2">
-            <div className="bg-white/5 border border-white/6 rounded-2xl p-6 shadow-xl">
-              <label className="text-xl font-semibold text-gray-300 mb-2 block">Lesson prompt</label>
+          {/* INPUTS */}
+          <div className="space-y-6">
+            <div>
+              <label className="text-gray-300 mb-2 block">Lesson Prompt</label>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Example: 'Teach me about graphs and coordinates'"
-                className="w-full bg-black/60 border border-white/6 p-4 rounded-lg text-white resize-none focus:outline-none"
-                rows={5}
+                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 h-32"
+                placeholder="Example: Teach me algebra basics"
               />
+            </div>
 
-              <div className="mt-5 flex items-center gap-3">
-                <button
-                  onClick={handleGenerate}
-                  disabled={loading}
-                  className="flex items-center gap-2 bg-white text-black px-5 py-2 rounded-full font-semibold shadow-sm disabled:opacity-50"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="animate-spin" size={16} />
-                      Generating...
-                    </>
-                  ) : (
-                    <span>Generate Lesson</span>
-                  )}
-                </button>
+            <div>
+              <label className="text-gray-300 mb-2 block">
+                Target Audience
+              </label>
+              <input
+                value={audience}
+                onChange={(e) => setAudience(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl p-3"
+                placeholder="Kids, college students, beginners..."
+              />
+            </div>
 
-                <button
-                  onClick={reset}
-                  className="px-4 py-2 rounded-full bg-blue-200 text-black font-medium"
-                >
-                  Reset
-                </button>
-              </div>
+            <div>
+              <label className="text-gray-300 mb-2 block">Tone</label>
+              <input
+                value={tone}
+                onChange={(e) => setTone(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl p-3"
+                placeholder="Friendly, fun, professional…"
+              />
+            </div>
 
-              {error && (
-                <div className="mt-6 bg-red-500/20 border border-red-500/50 p-4 rounded-lg">
-                  <p className="text-red-300 font-medium">❌ {error}</p>
-                </div>
-              )}
+            {/* BUTTONS */}
+            <div className="flex gap-4 pt-4">
+              <button
+                onClick={handleGenerate}
+                disabled={loading}
+                className="bg-white text-black px-6 py-3 rounded-full font-semibold flex items-center gap-2 disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : null}
+                {loading ? "Generating..." : "Generate Lesson"}
+              </button>
 
-              {loading && (
-                <div className="mt-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-2 h-8 bg-gradient-to-b from-pink-300 to-yellow-200 rounded-full animate-pulse" />
-                    <div>
-                      <div className="text-xs text-gray-400 uppercase tracking-wider">
-                        Generation Progress
-                      </div>
-                      <div className="text-sm text-gray-300">
-                        Watch each stage complete in order
-                      </div>
+              <button
+                onClick={reset}
+                className="bg-blue-300 text-black px-6 py-3 rounded-full font-medium"
+              >
+                Reset
+              </button>
+            </div>
+
+            {error && (
+              <p className="text-red-400 bg-red-500/10 border border-red-500/30 p-3 rounded-xl">
+                ❌ {error}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT PANEL */}
+        <div className="hidden lg:flex w-1/2 p-10 items-center justify-center">
+          {/* If NOT generating → show illustration */}
+          {!showProgress && (
+            <div className="w-full gap-6 h-full flex flex-col items-center justify-center text-center opacity-80 transition-all duration-700">
+               {/* <h2 className="text-2xl text-gray-300">Your AI lesson awaits</h2> */}
+             <p className="text-6xl">
+               <TextType
+                text={WaitingArray}
+                typingSpeed={75}
+                pauseDuration={1500}
+                showCursor={true}
+                cursorCharacter="|"
+              />
+             </p>
+              <p className="text-gray-500 mt-2 max-w-sm">
+                Start by entering a topic on the left. We'll generate a full
+                interactive lesson for you.
+              </p>
+            </div>
+          )}
+
+          {/* If generating → show progress timeline */}
+          {showProgress && (
+            <div className="w-full opacity-100 animate-fadeIn mt-4 transition-all">
+              <h2 className="text-xl mb-6 text-white/70 tracking-wide">
+                Generation Progress
+              </h2>
+
+              <div className="space-y-6">
+                {stages.map((s) => (
+                  <div
+                    key={s.id}
+                    className="bg-white/5 p-5 rounded-xl border border-white/10"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className={
+                          s.status === "done"
+                            ? "text-green-300"
+                            : s.status === "running"
+                            ? "text-yellow-300"
+                            : "text-gray-300"
+                        }
+                      >
+                        {s.label}
+                      </span>
+
+                      {s.status === "done" && (
+                        <Check size={18} className="text-green-300" />
+                      )}
+                      {s.status === "running" && (
+                        <Loader2 className="animate-spin text-yellow-300" />
+                      )}
+                    </div>
+
+                    <div className="w-full h-2 bg-white/10 rounded-xl overflow-hidden">
+                      <div
+                        className={`
+                          h-2 transition-all ${
+                            s.status === "done"
+                              ? "bg-green-400 w-full"
+                              : s.status === "running"
+                              ? "bg-yellow-300 w-3/4 animate-pulse"
+                              : "w-0"
+                          }
+                        `}
+                      />
                     </div>
                   </div>
+                ))}
+              </div>
 
-                  <div className="space-y-3">
-                    {stages.map((s, idx) => (
-                      <div key={s.id} className="flex items-start gap-4">
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                              s.status === "done"
-                                ? "bg-green-400"
-                                : s.status === "running"
-                                ? "bg-yellow-400 animate-pulse"
-                                : "bg-white/10"
-                            }`}
-                          >
-                            {s.status === "done" ? (
-                              <Check size={12} className="text-black" />
-                            ) : s.status === "running" ? (
-                              <Loader2 size={12} className="text-black animate-spin" />
-                            ) : null}
-                          </div>
-                          {idx < stages.length - 1 && (
-                            <div className="w-px h-full bg-white/6 mt-2" />
-                          )}
-                        </div>
-
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm font-medium">
-                              <span
-                                className={
-                                  s.status === "done"
-                                    ? "text-green-300"
-                                    : s.status === "running"
-                                    ? "text-yellow-300"
-                                    : "text-gray-300"
-                                }
-                              >
-                                {s.label}
-                              </span>
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {s.status === "done"
-                                ? "Done"
-                                : s.status === "running"
-                                ? "In progress"
-                                : "Pending"}
-                            </div>
-                          </div>
-
-                          <div className="mt-2 h-2 bg-white/6 rounded-full overflow-hidden">
-                            <div
-                              className={`h-2 rounded-full transition-all duration-700 ${
-                                s.status === "done"
-                                  ? "bg-green-400 w-full"
-                                  : s.status === "running"
-                                  ? "bg-yellow-400 w-3/4 animate-pulse"
-                                  : "bg-white/10 w-0"
-                              }`}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <p className="text-sm text-gray-500 mt-4 text-center">
-                    💡 Smart error fixing: We fix issues instead of regenerating!
-                  </p>
-                </div>
-              )}
-
+              {/* SUCCESS PANEL */}
               {result && (
-                <div className="mt-6 bg-green-500/20 border border-green-500/50 p-6 rounded-lg">
-                  <h3 className="font-semibold text-xl mb-2 text-green-300">
-                    ✅ Lesson Generated!
+                <div className="mt-10 p-6 bg-green-500/10 border border-green-500/30 rounded-xl">
+                  <h3 className="text-green-300 font-semibold text-xl mb-2">
+                    Lesson Generated!
                   </h3>
-                  <p className="text-gray-300 mb-3">
-                    <strong>Title:</strong> {result.title}
-                  </p>
-                  <p className="text-gray-400 text-sm mb-4">
-                    Redirecting you to your interactive lesson...
-                  </p>
+                  <p className="text-gray-300 mb-4">Redirecting shortly...</p>
+
                   <button
                     onClick={() => router.push(`/lessons/${result.lessonId}`)}
-                    className="bg-green-500 text-black px-6 py-2 rounded-full hover:bg-green-400 transition font-semibold"
+                    className="bg-green-400 text-black px-6 py-2 rounded-full"
                   >
-                    View Lesson Now →
+                    Open Lesson →
                   </button>
                 </div>
               )}
             </div>
-          </div>
+          )}
         </div>
       </main>
     </div>

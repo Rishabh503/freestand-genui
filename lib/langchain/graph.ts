@@ -35,7 +35,7 @@ export function createLessonGeneratorGraph() {
   return workflow.compile();
 }
 
-export async function runLessonGenerator(prompt: string, clerkId: string) {
+export async function runLessonGenerator(prompt: string, clerkId: string,audience:string  ,tone:string ) {
   const graph = createLessonGeneratorGraph();
 
   const initialState = {
@@ -49,6 +49,8 @@ export async function runLessonGenerator(prompt: string, clerkId: string) {
     status: "initialized",
     errorMessage: null,
     clerkId,
+    audience,
+    tone
   };
 
   const result = await graph.invoke(initialState);

@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
 import { runLessonGenerator } from "@/lib/langchain/graph";
 import { auth } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +13,8 @@ export async function POST(req: NextRequest) {
     });
 
      }
-    const { prompt } = await req.json();
+    const { prompt ,audience  ,tone } = await req.json();
+    
 
     if (!prompt || typeof prompt !== "string") {
       return NextResponse.json(
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     //  the LangGraph pipeline
-    const result = await runLessonGenerator(prompt,userId);
+    const result = await runLessonGenerator(prompt,userId,audience  ,tone );
 
     if (result.status === "completed" && result.lessonId) {
       return NextResponse.json({

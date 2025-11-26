@@ -11,6 +11,8 @@ export const GraphState = Annotation.Root({
   status: Annotation<string>,
   errorMessage: Annotation<string | null>,
   clerkId: Annotation<string | null>,
+  audience:Annotation<string | null>,
+  tone:Annotation<string | null>,
 });
 
 export type GraphStateType = typeof GraphState.State;

@@ -185,6 +185,8 @@ ${layout}
 ${specialHint}
 
 LESSON TOPIC: ${state.lessonTitle || state.prompt}
+LESSON AUDIENCE: ${state.audience || "intermediate"}  
+LESSON TONE: ${state.tone || "proffesional"}  
   `;
 
   const response = await model.invoke([
@@ -315,6 +317,8 @@ export async function saveLesson(state: GraphStateType): Promise<Partial<GraphSt
         tsx_code: state.tsxCode,
         clerk_id: state.clerkId,
         created_at: new Date().toISOString(),
+        tone:state.tone,
+        audience:state.audience
       })
       .select()
       .single();
