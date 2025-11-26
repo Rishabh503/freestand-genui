@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import { Check, Loader2 } from "lucide-react";
+import { Book, Check, Loader2, Pen, PenLine } from "lucide-react";
 import TextType from "../../components/TextType";
 import image from "../../public/image.png";
 const supabase = createClient(
@@ -186,7 +186,12 @@ export default function Page() {
           {!showProgress && (
             <div className="w-full gap-6 h-full flex flex-col items-center justify-center text-center opacity-80 transition-all duration-700">
                {/* <h2 className="text-2xl text-gray-300">Your AI lesson awaits</h2> */}
-             <p className="text-6xl">
+               
+<div className="inline-flex items-center gap-2 px-5 py-2 rounded-full border bg-white/5 border border-white/10 text-gray-200">
+  <PenLine size={18} className="text-gray-200" />
+  <span className="font-medium">Try Now</span>
+</div>
+             <div className="text-6xl">
                <TextType
                 text={WaitingArray}
                 typingSpeed={75}
@@ -194,7 +199,7 @@ export default function Page() {
                 showCursor={true}
                 cursorCharacter="|"
               />
-             </p>
+             </div>
               <p className="text-gray-500 mt-2 max-w-sm">
                 Start by entering a topic on the left. We'll generate a full
                 interactive lesson for you.
