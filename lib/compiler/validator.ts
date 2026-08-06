@@ -11,6 +11,16 @@ const DANGEROUS_PATTERNS = [
   { pattern: /innerHTML\s*=/, message: "innerHTML assignment is not allowed" },
   { pattern: /__proto__/, message: "__proto__ is not allowed" },
   { pattern: /constructor\s*\[/, message: "constructor access is not allowed" },
+  { pattern: /react-redux/, message: "Redux is not allowed. Use React local state instead (useState, useReducer, useContext)." },
+  { pattern: /@reduxjs\/toolkit/, message: "Redux Toolkit is not allowed. Use React local state instead." },
+  { pattern: /from\s+['"]redux['"]/, message: "Redux is not allowed. Use React local state instead." },
+  { pattern: /useSelector/, message: "useSelector is not allowed. Use standard React state hooks." },
+  { pattern: /useDispatch/, message: "useDispatch is not allowed. Use standard React state hooks." },
+  { pattern: /configureStore/, message: "configureStore is not allowed. Use standard React state hooks." },
+  { pattern: /createStore/, message: "createStore is not allowed. Use standard React state hooks." },
+  { pattern: /recoil/, message: "Recoil state management is not allowed. Use standard React state hooks." },
+  { pattern: /mobx/, message: "MobX state management is not allowed. Use standard React state hooks." },
+  { pattern: /jotai/, message: "Jotai state management is not allowed. Use standard React state hooks." },
 ];
 
 const ALLOWED_IMPORTS = [

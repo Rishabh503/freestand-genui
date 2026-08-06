@@ -2,21 +2,16 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import { Book, Check, Loader2, Pen, PenLine } from "lucide-react";
 import TextType from "../../components/TextType";
 import image from "../../public/image.png";
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function Page() {
   const router = useRouter();
 
   const [prompt, setPrompt] = useState("");
-  const [audience, setAudience] = useState("");
-  const [tone, setTone] = useState("");
+  const [audience, setAudience] = useState("beginners");
+  const [tone, setTone] = useState("fun & friendly");
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -101,8 +96,8 @@ export default function Page() {
     setError(null);
     setResult(null);
     setPrompt("");
-    setAudience("");
-    setTone("");
+    setAudience("beginners");
+    setTone("fun & friendly");
     setShowProgress(false); // HIDE right panel again
     setStages((s) => s.map((st) => ({ ...st, status: "idle" })));
   };
@@ -135,22 +130,30 @@ export default function Page() {
               <label className="text-gray-300 mb-2 block">
                 Target Audience
               </label>
-              <input
+              <select
                 value={audience}
                 onChange={(e) => setAudience(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl p-3"
-                placeholder="Kids, college students, beginners..."
-              />
+                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white appearance-none cursor-pointer"
+              >
+                <option value="kids" className="bg-black text-white">Kids</option>
+                <option value="beginners" className="bg-black text-white">Beginners</option>
+                <option value="college students" className="bg-black text-white">College Students</option>
+                <option value="professionals" className="bg-black text-white">Professionals</option>
+              </select>
             </div>
 
             <div>
               <label className="text-gray-300 mb-2 block">Tone</label>
-              <input
+              <select
                 value={tone}
                 onChange={(e) => setTone(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl p-3"
-                placeholder="Friendly, fun, professional…"
-              />
+                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white appearance-none cursor-pointer"
+              >
+                <option value="fun & friendly" className="bg-black text-white">Fun & Friendly</option>
+                <option value="professional" className="bg-black text-white">Professional</option>
+                <option value="creative" className="bg-black text-white">Creative</option>
+                <option value="academic" className="bg-black text-white">Academic</option>
+              </select>
             </div>
 
             {/* BUTTONS */}

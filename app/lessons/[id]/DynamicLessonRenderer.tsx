@@ -6,6 +6,102 @@ import * as LucideReact from "lucide-react";
 import * as Recharts from "recharts";
 import * as Babel from "@babel/standalone";
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  countdown: number;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  private timer: NodeJS.Timeout | null = null;
+
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null, countdown: 5 };
+  }
+
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Runtime error caught by ErrorBoundary:", error, errorInfo);
+    this.setState({ countdown: 5 });
+    
+    this.timer = setInterval(() => {
+      this.setState((prev) => {
+        if (prev.countdown <= 1) {
+          if (this.timer) clearInterval(this.timer);
+          window.location.href = '/generator';
+          return { countdown: 0 };
+        }
+        return { countdown: prev.countdown - 1 };
+      });
+    }, 1000);
+  }
+
+  componentWillUnmount() {
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-red-900 my-4 shadow-md">
+          <div className="flex items-start gap-4">
+            <div className="p-2 bg-red-100 text-red-600 rounded-lg">
+              <LucideReact.AlertOctagon size={24} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-red-800 mb-1">Interactive Component Crashed</h3>
+              <p className="text-red-700 text-sm mb-4">
+                The generated interactive element crashed during execution. This could be due to a runtime bug in the code.
+                <span className="block mt-2 font-semibold text-red-800">
+                  Automatically redirecting back to the generator space in {this.state.countdown} seconds...
+                </span>
+              </p>
+              {this.state.error && (
+                <details className="bg-white border border-red-200 p-3 rounded-lg text-xs font-mono max-h-42 overflow-y-auto">
+                  <summary className="cursor-pointer text-red-600 font-semibold mb-1">
+                    Error Log
+                  </summary>
+                  <pre className="whitespace-pre-wrap text-red-800">
+                    {this.state.error.toString()}
+                    {"\n"}
+                    {this.state.error.stack}
+                  </pre>
+                </details>
+              )}
+              <div className="flex flex-wrap gap-3 mt-4">
+                <button
+                  onClick={() => this.setState({ hasError: false, error: null })}
+                  className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-full text-sm font-semibold transition"
+                >
+                  Reset Component State
+                </button>
+                <button
+                  onClick={() => window.location.href = '/generator'}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2 rounded-full text-sm font-semibold transition"
+                >
+                  Go Back to Generator
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 interface DynamicLessonRendererProps {
   code: string;
   lessonId: string;
@@ -17,8 +113,10 @@ export default function DynamicLessonRenderer({
 }: DynamicLessonRendererProps) {
   const [Component, setComponent] = useState<React.ComponentType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number>(5);
 
   useEffect(() => {
+    let interval: NodeJS.Timeout;
     try {
       if (!code) return;
 
@@ -60,7 +158,7 @@ export default function DynamicLessonRenderer({
       
       let cleaned = code
         .replace(/^["']use client["'];?\s*/gm, "")
-        .replace(/import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)(?:\s*,\s*(?:\{[^}]*\}|\*\s+as\s+\w+|\w+))*\s+from\s+)?['"][^'"]+['"];?/gm, "")
+        .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/gm, "")
         .replace(/export\s+default\s+function\s+/g, "function ")
         .replace(/export\s+default\s+/g, "")
         .replace(/export\s*\{[^}]*\}\s*;?/g, "")
@@ -161,14 +259,34 @@ export default function DynamicLessonRenderer({
       console.error("Lesson Render Error:", err);
       console.error("Stack:", err.stack);
       setError(err.message || "Unknown error occurred");
+      
+      let count = 5;
+      setCountdown(count);
+      interval = setInterval(() => {
+        count -= 1;
+        setCountdown(count);
+        if (count <= 0) {
+          clearInterval(interval);
+          window.location.href = '/generator';
+        }
+      }, 1000);
     }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [code, lessonId]);
 
   if (error) {
     return (
       <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6">
         <h2 className="text-xl text-red-700 mb-1">Failed to Load Lesson</h2>
-        <p className="text-red-600 mb-4">There was an error rendering this lesson.</p>
+        <p className="text-red-600 mb-4">
+          There was an error rendering this lesson.
+          <span className="block mt-2 font-semibold text-red-800">
+            Automatically redirecting back to the generator space in {countdown} seconds...
+          </span>
+        </p>
 
         <details className="bg-white border p-3 rounded">
           <summary className="cursor-pointer text-red-700 font-medium">Error Details</summary>
@@ -177,12 +295,20 @@ export default function DynamicLessonRenderer({
           </pre>
         </details>
 
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
-        >
-          Reload Page
-        </button>
+        <div className="flex flex-wrap gap-3 mt-4">
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-red-600 text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-red-700 transition-colors"
+          >
+            Reload Page
+          </button>
+          <button
+            onClick={() => window.location.href = '/generator'}
+            className="bg-gray-200 text-gray-800 px-5 py-2 rounded-full text-sm font-semibold hover:bg-gray-300 transition-colors"
+          >
+            Go Back to Generator
+          </button>
+        </div>
       </div>
     );
   }
@@ -200,7 +326,9 @@ export default function DynamicLessonRenderer({
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
-      <Component />
+      <ErrorBoundary>
+        <Component />
+      </ErrorBoundary>
     </div>
   );
 }

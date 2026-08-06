@@ -3,13 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { createClient } from "@supabase/supabase-js";
 import { Search, Eye, Edit, Trash2, Loader2, Plus } from "lucide-react";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function Page() {
   const router = useRouter();
@@ -35,13 +29,9 @@ export default function Page() {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("lessons")
-        .select("*")
-        .eq("clerk_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const res = await fetch("/api/lessons");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch lessons");
       setLessons(data || []);
     } catch (err) {
       console.error("Error fetching lessons:", err);
@@ -72,8 +62,11 @@ export default function Page() {
     if (!confirm("Are you sure you want to delete this lesson?")) return;
 
     try {
-      const { error } = await supabase.from("lessons").delete().eq("id", id);
-      if (error) throw error;
+      const res = await fetch(`/api/lessons?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete lesson");
       fetchLessons();
     } catch (err) {
       console.error("Error deleting lesson:", err);

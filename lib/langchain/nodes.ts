@@ -1,18 +1,13 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { GraphStateType } from "./state";
 import { validateTSXCode, extractComponentCode } from "../compiler/validator";
-import { createClient } from "@supabase/supabase-js";
+import { saveLesson as dbSaveLesson } from "../db/api/lessons";
 
 const model = new ChatGoogleGenerativeAI({
   apiKey: process.env.GEMINI_KEY!,
   model: "gemini-2.5-flash",
   temperature: 0.7,
 });
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
 
 export async function analyzePrompt(state: GraphStateType): Promise<Partial<GraphStateType>> {
   const systemPrompt = `You are an educational content analyzer. 
@@ -27,7 +22,7 @@ export async function analyzePrompt(state: GraphStateType): Promise<Partial<Grap
 
   try {
     const parsed = JSON.parse(response.content.toString());
-    
+
     if (!parsed.isValid) {
       return {
         status: "rejected",
@@ -49,33 +44,38 @@ export async function analyzePrompt(state: GraphStateType): Promise<Partial<Grap
 
 
 const layout = `
-0 Add the Name of the topic at the top first 
-1 A detailed description of the topic (5–6 lines).
-2 A clear section describing real-life usage of the topic.
-3 One mandatory animated component using Tailwind animations (animate-bounce, animate-pulse, animate-spin) OR an SVG/canvas animation that is clearly visible (not micro).
-   - AT LEAST TWO visible animation cues must exist somewhere (e.g., pulsing glow + slow spin).
-   - One animated element must be SVG or canvas-based so animation is visually crisp.
-4 One mandatory INTERACTIVE component directly connected to the specific topic:
+0  Add the Name of the topic at the top first
+1  A detailed description of the topic (5–6 lines).
+2  A clear section describing real-life usage of the topic.
+3  One mandatory animated component using Tailwind animations (animate-bounce, animate-pulse, animate-spin)
+   OR an SVG/canvas animation that is clearly visible (not micro).
+   - AT LEAST TWO visible animation cues must exist somewhere.
+   - One animated element must be SVG or canvas-based.
+4  One mandatory INTERACTIVE component directly connected to the specific topic:
    - The interaction must visually or logically demonstrate the topic.
    - Interaction must NOT be generic. It must deeply match the topic.
-   - The interactive component MUST include controls (slider, buttons, color picker, draggable element) and update the visual in real-time.
-   Examples:
-     • Sun → brightness/size slider changing a glowing SVG sun with gradient and shadow
-     • Moon → phase rotation slider that updates an SVG moon
-     • Trees → growth height slider that animates an SVG/HTML plant growing
-     • Colors → live color mixer with 3 sliders and a preview card using gradient
-     • Physics → gravity toggle + draggable object that falls with easing
-     • Math → live calculator with formula visualizer
-     • Algorithms → step-by-step visualizer with play/pause controls
-     • Databases → input → shows index/hash jump visual
-     • Networking → packet flow mini-visual with animated packets
-     • Encryption → input → animated transform showing encryption steps
-5 A quiz with 3 questions + instant feedback based on user answers.
-6 Buttons must use pastel colors (bg-blue-200, bg-pink-200, bg-green-200, bg-yellow-200) and never white.
-7 At least five UI elements (cards, sections, containers, sidebars, quiz area) must use soft pastel backgrounds.
-8 Use pastel accents in text, borders, and SVG fills. Provide at least 5 distinct pastel shades across the UI.
-9 Ensure animations are visible on light (white) backgrounds: use glows, shadows, SVG fills, larger durations (>= 600ms) so they're noticeable.
+   - Must include controls (slider, buttons, color picker, draggable) updating the visual in real-time.
+5  A quiz with 5 questions + instant feedback based on user answers.
+6  Buttons must use pastel colors (bg-blue-200, bg-pink-200, bg-green-200, bg-yellow-200) — never white.
+7  At least five UI elements must use soft pastel backgrounds.
+8  Use pastel accents in text, borders, and SVG fills — at least 5 distinct pastel shades.
+9  Animations must be visible on light (white) backgrounds: use glows, shadows, SVG fills, durations >=600ms.
 10 Absolutely no hover effects anywhere.
+11 Add a “Key Idea” box that explains the core concept in 2–3 simple lines.
+   - Must be beginner-friendly
+   - Avoid jargon
+   - Use analogy if possible
+12 Add a step-by-step explanation section:
+   - Break the concept into 3–5 steps
+   - Each step must be short and clear
+   - Steps must logically build understanding
+13Add at least one real-world example:
+   - Step-by-step explanation
+   - Show how concept is applied
+14 Add a “Summary” box at the end:
+   - 3–4 bullet points recapping the lesson
+   - Reinforce key takeaways
+   - Keep it concise and clear
 `;
 
 
@@ -105,12 +105,12 @@ function buildSpecialHint(prompt: string) {
   if (lc.includes("encrypt") || lc.includes("encryption") || lc.includes("cipher")) {
     return "SPECIAL_INTERACTIVE_HINT: Create an input that shows live encrypted output with animated transformation boxes showing steps (substitution/permutation).";
   }
-  
+
   return "SPECIAL_INTERACTIVE_HINT: Create a topic-relevant interactive widget: choose an appropriate visual (slider, color mixer, draggable demo, or mini-graph) that updates a clear, visible SVG/HTML visual in real-time. Ensure controls are labeled and animations are visible (>=600ms).";
 }
 
 export async function generateUI(state: GraphStateType): Promise<Partial<GraphStateType>> {
- 
+
   const specialHint = buildSpecialHint(state.prompt || state.lessonTitle || "");
 
   const systemPrompt = `
@@ -182,6 +182,12 @@ ${layout}
 
 15. Return ONLY the full TSX component inside a Markdown code block. Do not return analysis or any extra text.
 
+16. STATE MANAGEMENT RULE (REQUIRED):
+    - ABSOLUTELY NO REDUX, MOBX, OR OTHER THIRD-PARTY STATE MANAGEMENT LIBRARIES (like react-redux, @reduxjs/toolkit, zustand, recoil).
+    - Use ONLY standard React state hooks: useState, useReducer, useContext, useMemo, useCallback, and useRef.
+    - All state must be local or managed within simple React context/hooks.
+    - Do not try to import or use anything from 'react-redux' or '@reduxjs/toolkit'.
+
 ${specialHint}
 
 LESSON TOPIC: ${state.lessonTitle || state.prompt}
@@ -205,14 +211,14 @@ LESSON TONE: ${state.tone || "proffesional"}
 
 export async function fixErrors(state: GraphStateType): Promise<Partial<GraphStateType>> {
 
-  const criticalErrors = state.validationErrors.filter(err => 
+  const criticalErrors = state.validationErrors.filter(err =>
     !err.includes("Try `npm i --save-dev @types/") &&
     !err.includes("Could not find a declaration file") &&
     !err.includes("Module") &&
     err !== "Component must have 'export default'"
   );
 
-  
+
   if (criticalErrors.length === 0) {
     return {
       isValid: true,
@@ -253,6 +259,7 @@ INSTRUCTIONS:
    
    6.4 Each lucide-react icon must be imported with its exact original name
    6.5 If there's a variable name conflict, rename the VARIABLE not the IMPORT
+   6.6 If the code imports or uses react-redux, @reduxjs/toolkit, or other external state management libraries, REMOVE those imports and convert the state to standard React hooks (useState, useReducer, useContext, etc.).
    
    EXAMPLE FIX:
    ❌ WRONG:
@@ -309,21 +316,14 @@ export async function validateCode(state: GraphStateType): Promise<Partial<Graph
 
 export async function saveLesson(state: GraphStateType): Promise<Partial<GraphStateType>> {
   try {
-    const { data, error } = await supabase
-      .from("lessons")
-      .insert({
-        title: state.lessonTitle,
-        prompt: state.prompt,
-        tsx_code: state.tsxCode,
-        clerk_id: state.clerkId,
-        created_at: new Date().toISOString(),
-        tone:state.tone,
-        audience:state.audience
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const data = await dbSaveLesson({
+      title: state.lessonTitle,
+      prompt: state.prompt,
+      tsxCode: state.tsxCode,
+      clerkId: state.clerkId,
+      tone: state.tone,
+      audience: state.audience,
+    });
 
     return {
       lessonId: data.id,
@@ -342,15 +342,15 @@ export function shouldRetry(state: GraphStateType): string {
   if (state.status === "rejected" || state.status === "save_failed") {
     return "end";
   }
-  
+
   if (state.isValid) {
     return "save";
   }
-  
+
   if ((state.attempt || 0) >= 3) {
     return "end";
   }
-  
+
   return "fix";
 }
 
@@ -358,7 +358,7 @@ export function finalizeState(state: GraphStateType): Partial<GraphStateType> {
   if (state.lessonId) {
     return { status: "completed" };
   }
-  
+
   return {
     status: "failed",
     errorMessage: state.errorMessage || "Maximum retry attempts reached",

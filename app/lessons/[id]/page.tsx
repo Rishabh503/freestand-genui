@@ -1,13 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
+import { getLessonById } from "@/lib/db/api/lessons";
 import { notFound } from "next/navigation";
 import DynamicLessonRenderer from "./DynamicLessonRenderer";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default async function LessonPage({
   params,
@@ -16,13 +11,9 @@ export default async function LessonPage({
 }) {
   const gotId = await params;
 
-  const { data: lesson, error } = await supabase
-    .from("lessons")
-    .select("*")
-    .eq("id", gotId.id)
-    .single();
+  const lesson = await getLessonById(gotId.id);
 
-  if (error || !lesson) {
+  if (!lesson) {
     notFound();
   }
   console.log(lesson);
@@ -40,8 +31,8 @@ export default async function LessonPage({
               day: "numeric",
               year: "numeric",
             })}
-            <span>{" "} </span> |<span>{lesson.tone.toUpperCase()}</span>|
-            <span>{lesson.audience.toUpperCase()}</span>
+            <span>{" "} </span> |<span>{(lesson.tone || "").toUpperCase()}</span>|
+            <span>{(lesson.audience || "").toUpperCase()}</span>
           </p>
         </div>
 
