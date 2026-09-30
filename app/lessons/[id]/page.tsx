@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react";
 export default async function LessonPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const gotId = await params;
 

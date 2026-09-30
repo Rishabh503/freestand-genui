@@ -1,13 +1,7 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { GraphStateType } from "./state";
 import { validateTSXCode, extractComponentCode } from "../compiler/validator";
 import { saveLesson as dbSaveLesson } from "../db/api/lessons";
-
-const model = new ChatGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_KEY!,
-  model: "gemini-2.5-flash",
-  temperature: 0.7,
-});
+import { invokeGeminiWithFallback } from "./geminiClient";
 
 export async function analyzePrompt(state: GraphStateType): Promise<Partial<GraphStateType>> {
   const systemPrompt = `You are an educational content analyzer. 
@@ -15,10 +9,10 @@ export async function analyzePrompt(state: GraphStateType): Promise<Partial<Grap
   Extract a clear lesson title.
   Return JSON: { "isValid": true/false, "title": "...", "reason": "..." }`;
 
-  const response = await model.invoke([
+  const response = await invokeGeminiWithFallback([
     { role: "system", content: systemPrompt },
     { role: "user", content: state.prompt },
-  ]);
+  ], { temperature: 0.3 });
 
   try {
     const parsed = JSON.parse(response.content.toString());
@@ -195,10 +189,10 @@ LESSON AUDIENCE: ${state.audience || "intermediate"}
 LESSON TONE: ${state.tone || "proffesional"}  
   `;
 
-  const response = await model.invoke([
+  const response = await invokeGeminiWithFallback([
     { role: "system", content: systemPrompt },
     { role: "user", content: `Create an interactive lesson for: ${state.prompt}` },
-  ]);
+  ], { temperature: 0.7 });
 
   const rawCode = response.content.toString();
   const extractedCode = extractComponentCode(rawCode);
@@ -281,10 +275,10 @@ ${state.tsxCode}
 Return ONLY the corrected TSX code with NO extra text:
 `;
 
-  const response = await model.invoke([
+  const response = await invokeGeminiWithFallback([
     { role: "system", content: systemPrompt },
     { role: "user", content: "Fix these errors in the code" },
-  ]);
+  ], { temperature: 0.2 });
 
   const rawCode = response.content.toString();
   const extractedCode = extractComponentCode(rawCode);

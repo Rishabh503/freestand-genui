@@ -1,0 +1,358 @@
+Project Name   : Freestand GenUI Generator ("Lesson Start")
+Framework      : Next.js 16 (App Router), React 19, TypeScript
+AI Engine      : Google Gemini 3.8 Flash & 3.5 Flash-Lite via LangChain / LangGraph
+Database       : Neon PostgreSQL Serverless (@neondatabase/serverless)
+Auth Provider  : Clerk Authentication (@clerk/nextjs)
+In-Browser JIT : Babel Standalone (@babel/standalone) TSX/JSX Dynamic Transpiler
+Observability  : LangSmith Tracing
+
+================================================================================
+1. ENVIRONMENT KEYS & SECRETS SUMMARY
+================================================================================
+Configured Environment Keys:
+[MANDATORY CORE KEYS]
+1. DATABASE_URL
+   - Purpose: Neon Serverless PostgreSQL connection string.
+   - Used in: lib/db/neonClient.ts
+
+2. GEMINI_KEY (or GEMINI_KEY_1)
+   - Purpose: Primary Google AI Gemini API Key for model inference.
+   - Used in: lib/langchain/geminiClient.ts
+
+3. GEMINI_KEY_2 (Recommended for high availability)
+   - Purpose: Secondary backup Google AI Gemini API Key for automatic fallback under rate limits.
+   - Used in: lib/langchain/geminiClient.ts
+
+4. GEMINI_MODEL_1 & GEMINI_MODEL_2 (Configurable in .env.local)
+   - GEMINI_MODEL_1: Defaults to "gemini-3.8-flash" (Current flagship ultra-fast model)
+   - GEMINI_MODEL_2: Defaults to "gemini-3.5-flash-lite" (Ultra-fast lightweight fallback model)
+
+5. NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+   - Purpose: Clerk frontend client key for user authentication and sessions.
+   - Used in: app/layout.tsx, app/components/Navbar.tsx
+
+6. CLERK_SECRET_KEY
+   - Purpose: Clerk backend server secret key to verify sessions and user IDs.
+   - Used in: middleware.ts, app/api/generation/route.ts, app/api/lessons/route.ts
+
+[OBSERVABILITY & TRACING KEYS (Optional)]
+7. LANGSMITH_TRACING
+8. LANGSMITH_ENDPOINT
+9. LANGSMITH_API_KEY
+10. LANGSMITH_PROJECT
+
+[HIGH-TRAFFIC RESILIENCE: 2-KEY & 2-MODEL RETRY MATRIX]
+When generating or fixing code, the system cycles through:
+  Attempt 1: Key 1 + Model 1 (e.g. GEMINI_KEY + gemini-2.5-flash)
+  Attempt 2: Key 2 + Model 1 (e.g. GEMINI_KEY_2 + gemini-2.5-flash)
+  Attempt 3: Key 1 + Model 2 (e.g. GEMINI_KEY + gemini-2.0-flash)
+  Attempt 4: Key 2 + Model 2 (e.g. GEMINI_KEY_2 + gemini-2.0-flash)
+Only if all 4 attempts fail will the user receive a "Service is busy" notification.
+
+================================================================================
+2. HIGH-LEVEL DESIGN (HLD)
+================================================================================
+
+2.1 SYSTEM OVERVIEW
+Freestand GenUI is an AI-powered interactive educational lesson generator. Instead of producing static markdown or plain text explanations, it dynamically generates full, executable, self-contained React TSX widgets with interactive controls (sliders, physics demos, custom SVG visualizers, data charts, and quizzes) tailored to a user-supplied topic, audience level, and pedagogical tone.
+
+2.2 HIGH-LEVEL SYSTEM ARCHITECTURE
++---------------------------------------------------------------------------------+
+|                                CLIENT BROWSER                                   |
+|  +---------------------+  +----------------------+  +------------------------+  |
+|  | Landing Page (/)    |  | Lesson Generator     |  | Dashboard (/dashboard) |  |
+|  | - Hero & CTA        |  | (/generator)         |  | - Manage saved lessons |  |
+|  +---------------------+  +----------------------+  +------------------------+  |
+|                                       |                                         |
+|                                       v                                         |
+|                   +---------------------------------------+                     |
+|                   | Dynamic Lesson Renderer               |                     |
+|                   | (/lessons/[id])                       |                     |
+|                   | - Client-side Babel compilation       |                     |
+|                   | - Sandboxed React function execution  |                     |
+|                   | - ErrorBoundary & Auto-recovery       |                     |
+|                   +---------------------------------------+                     |
++---------------------------------------|-----------------------------------------+
+                                        | (HTTP / Fetch API)
+                                        v
++---------------------------------------------------------------------------------+
+|                               NEXT.JS BACKEND (App Router)                      |
+|                                                                                 |
+|  [Middleware (middleware.ts)]                                                   |
+|  - Clerk route protection for /generator and /lessons                           |
+|                                                                                 |
+|  [API Routes]                                                                   |
+|  +---------------------------------+   +-------------------------------------+  |
+|  | POST /api/generation            |   | GET, DELETE /api/lessons            |  |
+|  | - Auth session verification     |   | - Fetch user lessons                |  |
+|  | - Runs LangGraph pipeline       |   | - Delete user owned lessons         |  |
+|  +---------------------------------+   +-------------------------------------+  |
+|                   |                                     |                       |
++-------------------|-------------------------------------|-----------------------+
+                    |                                     |
+                    v                                     v
++------------------------------------+   +----------------------------------------+
+| LANGGRAPH AGENT WORKFLOW           |   | DATABASE LAYER                         |
+| (lib/langchain/graph.ts)           |   | (lib/db/neonClient.ts & lessons.ts)    |
+| - Node 1: analyzePrompt (LLM)      |   | - Neon Serverless PostgreSQL           |
+| - Node 2: generateUI (LLM)         |   | - Table: lessons                       |
+| - Node 3: validateCode (Static AST)|   +----------------------------------------+
+| - Node 4: fixErrors (LLM Auto-heal)|
+| - Node 5: saveLesson (DB persist)  |
+| - Node 6: finalizeState            |
+| - LangSmith Tracing & Telemetry    |
++------------------------------------+
+
+2.3 CORE DATA FLOWS
+Flow A: Lesson Generation Flow
+1. User enters topic prompt, selects target audience (kids, beginners, college, professionals), and tone (fun, professional, creative, academic).
+2. Client sends POST request to `/api/generation`.
+3. Backend validates Clerk session (`userId`).
+4. LangGraph pipeline initializes state:
+   a. analyzePrompt: LLM verifies if the topic is educational and generates a clean title.
+   b. generateUI: LLM crafts a complete, standalone TypeScript React component matching strict UI/accessibility/aesthetic constraints.
+   c. validateCode: Static validation engine checks for dangerous code (eval, innerHTML, prototype pollution), disallowed external libraries (e.g. Redux), correct import syntax (no aliases), and basic syntax.
+   d. fixErrors (Self-Healing Loop): If validation fails, errors are fed back to Gemini 2.5 Flash to repair the code (up to 3 retries).
+   e. saveLesson: Valid TSX code + metadata are saved into Neon PostgreSQL.
+   f. finalizeState: Returns lessonId and lesson title to frontend.
+5. Frontend receives `lessonId` and redirects user to `/lessons/[id]`.
+
+Flow B: Lesson Rendering & Execution Flow
+1. Page `/lessons/[id]` fetches stored lesson record (Server Component).
+2. Code is passed to client component `<DynamicLessonRenderer code={...} />`.
+3. Client transpiles TSX string on-the-fly using `@babel/standalone` into executable ES JavaScript.
+4. Safely binds React hooks, Lucide icons, Recharts, and date-fns into a factory execution scope (`new Function(...)`).
+5. Evaluates and mounts the dynamically generated React component wrapped inside a custom React `ErrorBoundary`.
+
+================================================================================
+3. LOW-LEVEL DESIGN (LLD)
+================================================================================
+
+3.1 DIRECTORY STRUCTURE & COMPONENT ROLES
+freestand-genui/
+├── app/
+│   ├── api/
+│   │   ├── generation/route.ts       # POST handler: Triggers LangGraph lesson generation
+│   │   └── lessons/route.ts          # GET (list lessons), DELETE (delete lesson by ID)
+│   ├── components/
+│   │   └── Navbar.tsx                # Global top navigation bar with Clerk Auth buttons
+│   ├── dashboard/page.tsx            # Lessons management dashboard (search, sort, view, delete)
+│   ├── generator/page.tsx            # Generation input form + animated multi-stage progress UI
+│   ├── lessons/[id]/
+│   │   ├── page.tsx                  # Server component fetching lesson from DB
+│   │   └── DynamicLessonRenderer.tsx # Babel in-browser JIT transpiler & sandboxed runner
+│   ├── globals.css                   # Global styles & Tailwind CSS imports
+│   ├── layout.tsx                    # Root layout with ClerkProvider & Google Fonts (Geist)
+│   ├── page.tsx                      # Landing / Hero page
+│   └── test/page.tsx                 # Test page
+├── components/
+│   ├── Plasma.jsx                    # WebGL / OGL background shader visual effect
+│   ├── RotatingText.jsx              # Dynamic text animation component
+│   └── TextType.jsx                  # GSAP-powered animated typewriter component
+├── lib/
+│   ├── compiler/
+│   │   └── validator.ts              # Code sanitizer, AST/pattern validator, markdown extractor
+│   ├── db/
+│   │   ├── neonClient.ts             # Neon serverless PostgreSQL connection instance
+│   │   └── api/lessons.ts            # CRUD operations for 'lessons' table (SQL template tags)
+│   ├── langchain/
+│   │   ├── graph.ts                  # LangGraph StateGraph topology, retry loops, conditional edges
+│   │   ├── nodes.ts                  # Graph node implementations (prompts, LLM calls, DB saves)
+│   │   └── state.ts                  # GraphState annotation definition
+│   └── utils.ts                      # Tailwind merge (cn utility)
+├── middleware.ts                     # Clerk middleware protecting /generator and /lessons
+├── package.json                      # Project dependencies & scripts
+├── tsconfig.json                     # TypeScript compilation configuration
+└── tailwind.config.js                # Tailwind CSS palette and animations
+
+3.2 DATABASE SCHEMA (PostgreSQL / Neon)
+Table: `lessons`
+--------------------------------------------------------------------------------
+Column      | Type                     | Constraints / Default
+------------+--------------------------+----------------------------------------
+id          | UUID or TEXT             | PRIMARY KEY, DEFAULT gen_random_uuid()
+title       | TEXT                     | NOT NULL
+prompt      | TEXT                     | NOT NULL
+tsx_code    | TEXT                     | NOT NULL
+clerk_id    | TEXT                     | NOT NULL (Indexed for user lookups)
+tone        | TEXT                     | NULLABLE
+audience    | TEXT                     | NULLABLE
+created_at  | TIMESTAMP WITH TIME ZONE | DEFAULT NOW()
+--------------------------------------------------------------------------------
+
+SQL Initialization Query:
+```sql
+CREATE TABLE IF NOT EXISTS lessons (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    tsx_code TEXT NOT NULL,
+    clerk_id TEXT NOT NULL,
+    tone TEXT,
+    audience TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_lessons_clerk_id ON lessons(clerk_id);
+```
+
+3.3 LANGGRAPH STATE MACHINE SPECIFICATION
+The LangGraph pipeline coordinates the generation, analysis, static verification, and auto-repair cycle.
+
+State Schema (lib/langchain/state.ts):
+- prompt: string
+- lessonTitle: string
+- tsxCode: string
+- validationErrors: string[]
+- attempt: number
+- isValid: boolean
+- lessonId: string | null
+- status: string ("initialized" | "analyzed" | "generated" | "validated" | "fixed" | "saved" | "completed" | "rejected" | "failed")
+- errorMessage: string | null
+- clerkId: string | null
+- audience: string | null
+- tone: string | null
+
+Graph State Diagram:
+      [__start__]
+           |
+           v
+     (analyzePrompt)
+           |
+           +-----> [status == "rejected"] -----> (finalizeState) -----> [__end__]
+           |
+           v [status == "analyzed"]
+      (generateUI)
+           |
+           v
+     (validateCode) <-------------------+
+           |                            |
+           +-----> [isValid == true] ---> (saveLesson) ---> (finalizeState) ---> [__end__]
+           |                            |
+           +-----> [attempt < 3] -------> (fixErrors) --+
+           |
+           +-----> [attempt >= 3] ------> (finalizeState) ---> [__end__]
+
+3.4 CODE VALIDATION ENGINE (lib/compiler/validator.ts)
+Security & Syntax Rules enforced before storing/executing code:
+1. Prohibited Dangerous Patterns:
+   - `eval()`, `Function()`, `dangerouslySetInnerHTML`, `document.write`, `innerHTML =`
+   - Prototype pollution: `__proto__`, `constructor[`
+2. Architecture Enforcement:
+   - Blocks external state managers (`redux`, `@reduxjs/toolkit`, `recoil`, `mobx`, `jotai`, `useSelector`, `useDispatch`). Forces standard React hooks (`useState`, `useReducer`, `useContext`, `useRef`).
+3. Allowed Imports Whitelist:
+   - `react`, `lucide-react`, `recharts`, `date-fns`
+4. Code Structure Checks:
+   - Must have `export default function ...`
+   - Balanced braces `{}`
+   - Balanced parentheses `()`
+   - Balanced brackets `[]`
+   - JSX return statement verification
+
+3.5 DYNAMIC IN-BROWSER TSX RUNTIME (DynamicLessonRenderer.tsx)
+How client dynamically compiles and renders AI-generated TSX code:
+1. Regex Parsing:
+   - Extracts all named imports from `lucide-react` (e.g. Sun, Moon, Atom)
+   - Extracts all named imports from `recharts` (e.g. LineChart, BarChart)
+   - Strips `"use client"` and static `import ... from ...` statements
+   - Identifies component name from `export default function <Name>()`
+2. In-Browser Compilation:
+   - Uses `@babel/standalone` with `presets: ["react", "typescript"]` to transpile TSX to pure JavaScript.
+3. Execution Scope Sandboxing:
+   - Builds an execution wrapper injecting runtime dependencies:
+     - `React` & all standard hooks
+     - `LucideReact` (destructured to requested icons)
+     - `Recharts` (destructured to requested chart components)
+     - Custom `simpleDateFormat` function
+4. Factory Execution:
+   - Executes via `new Function(...)` returning the React functional component.
+5. Error Boundary & Self-Healing Fallback:
+   - If runtime errors occur, the `<ErrorBoundary>` catches the exception, presents a clean error log, and provides a 5-second countdown redirecting back to `/generator`.
+
+================================================================================
+4. HOW TO SETUP AND RUN LOCALLY
+================================================================================
+
+4.1 PREREQUISITES
+- Node.js (v18+ or v20+) OR Bun runtime (v1.0+)
+- Neon PostgreSQL Account (or any standard PostgreSQL database)
+- Clerk Authentication Account (https://clerk.com)
+- Google AI Studio API Key (https://aistudio.google.com)
+- (Optional) LangSmith Account for tracing (https://smith.langchain.com)
+
+4.2 DATABASE INITIALIZATION
+Log into your Neon / Postgres console and execute:
+```sql
+CREATE TABLE lessons (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    tsx_code TEXT NOT NULL,
+    clerk_id TEXT NOT NULL,
+    tone TEXT,
+    audience TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+4.3 CONFIGURE ENVIRONMENT VARIABLES
+Create a `.env.local` file in the root directory:
+```env
+# 1. Neon Database Connection String
+DATABASE_URL=postgresql://neondb_owner:your_password@ep-your-host.neon.tech/neondb?sslmode=require
+
+# 2. Google Gemini API Key
+GEMINI_KEY=AIzaSy...your_gemini_api_key
+
+# 3. Clerk Authentication Keys
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+
+# 4. LangSmith Tracing (Optional - set to false if not using)
+LANGSMITH_TRACING=true
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+LANGSMITH_API_KEY=lsv2_pt_...
+LANGSMITH_PROJECT=freestand-genui
+```
+
+4.4 INSTALL DEPENDENCIES
+Using npm:
+```bash
+npm install
+```
+Or using Bun:
+```bash
+bun install
+```
+
+4.5 START THE DEVELOPMENT SERVER
+```bash
+npm run dev
+```
+Or with Bun:
+```bash
+bun run dev
+```
+
+The application will be accessible at: http://localhost:3000
+
+================================================================================
+5. SUMMARY OF KEY PAGES & ROUTES
+================================================================================
+Route              | Type    | Purpose
+-------------------+---------+--------------------------------------------------
+/                  | Public  | Landing page with hero section & navigation to generator
+/generator         | Auth    | Generation interface with audience/tone pickers & progress steps
+/lessons/[id]      | Auth    | Live dynamic lesson viewer running compiled TSX component
+/dashboard         | Auth    | User library with search, sort, view, and deletion of lessons
+/api/generation    | API     | POST endpoint executing the LangGraph generation agent
+/api/lessons       | API     | GET (fetch user lessons) & DELETE (remove lesson by ID)
+
+================================================================================
+6. ARCHITECTURAL STRENGTHS & RESILIENCE DESIGN
+================================================================================
+1. Self-Healing Code Loop: If Gemini generates TSX with invalid imports or malformed brackets, `validator.ts` catches it and the `fixErrors` node re-submits the exact errors to Gemini to patch only the broken lines.
+2. In-Browser Safe Execution: Lessons are compiled dynamically in the client's browser, preventing server-side code execution vulnerabilities while allowing full interactive React component freedom.
+3. Strict Visual Design System Enforced via System Prompts: The model is constrained to output pastel color schemes, custom SVG animations, topic-specific interactive widgets, and instant-feedback quizzes.
+4. Decoupled Architecture: Next.js App Router for frontend/API, Neon Serverless for lightweight SQL storage, Clerk for decoupled auth, and LangChain/LangGraph for stateful multi-step LLM pipelines.
+================================================================================

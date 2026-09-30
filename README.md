@@ -19,7 +19,7 @@ Freestand GenUI Generator allows users to:
 - Bun runtime
 - Supabase (Auth + Database)
 - LangSmith (Tracing & Debugging)
-- Gemini 2.0 / 2.5 Flash API
+- Gemini 3.8 Flash & 3.5 Flash-Lite
 - Tailwind CSS (optional)
 
 ## Features
