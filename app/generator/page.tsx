@@ -71,7 +71,17 @@ export default function Page() {
         body: JSON.stringify({ prompt, audience, tone }),
       });
 
-      const data = await res.json();
+      const textResponse = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(textResponse);
+      } catch {
+        throw new Error(
+          res.status === 504 || res.status === 500
+            ? "Generation timed out or server error occurred. Please try again."
+            : textResponse || `Server returned error (${res.status})`
+        );
+      }
 
       if (data.success) {
         setStages((s) => s.map((st) => ({ ...st, status: "done" })));

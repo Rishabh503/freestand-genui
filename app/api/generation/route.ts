@@ -2,6 +2,9 @@ import { runLessonGenerator } from "@/lib/langchain/graph";
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
+export const maxDuration = 60; // Allow up to 60s for multi-step AI generation
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
      const { userId } =await auth();
