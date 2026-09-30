@@ -22,12 +22,12 @@ export function getGeminiKeys(): { key1: string | undefined; key2: string | unde
 
 /**
  * Retrieves configured Gemini model identifiers.
- * Model 1 defaults to gemini-3.8-flash (Primary fast model)
- * Model 2 defaults to gemini-3.5-flash-lite (Ultra-fast lightweight fallback)
+ * Model 1 defaults to gemini-3.5-flash-lite (High-quota, ultra-fast generation <2s)
+ * Model 2 defaults to gemini-flash-lite-latest (Reliable fallback)
  */
 export function getGeminiModels(): { model1: string; model2: string } {
-  const model1 = process.env.GEMINI_MODEL_1 || "gemini-3.8-flash";
-  const model2 = process.env.GEMINI_MODEL_2 || "gemini-3.5-flash-lite";
+  const model1 = process.env.GEMINI_MODEL_1 || "gemini-3.5-flash-lite";
+  const model2 = process.env.GEMINI_MODEL_2 || "gemini-flash-lite-latest";
   return { model1, model2 };
 }
 
@@ -103,6 +103,7 @@ export async function invokeGeminiWithFallback(
         apiKey: candidate.apiKey,
         model: candidate.modelName,
         temperature,
+        maxRetries: 0, // Immediately fail over to next key/model without hanging on 429 retries
       });
 
       const response = await model.invoke(messages);

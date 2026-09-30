@@ -24,8 +24,8 @@ Configured Environment Keys:
    - Used in: lib/langchain/geminiClient.ts
 
 4. GEMINI_MODEL_1 & GEMINI_MODEL_2 (Configurable in .env.local)
-   - GEMINI_MODEL_1: Defaults to "gemini-3.8-flash" (Current flagship ultra-fast model)
-   - GEMINI_MODEL_2: Defaults to "gemini-3.5-flash-lite" (Ultra-fast lightweight fallback model)
+   - GEMINI_MODEL_1: Defaults to "gemini-3.5-flash-lite" (High-quota, ultra-fast generation <2s)
+   - GEMINI_MODEL_2: Defaults to "gemini-flash-lite-latest" (Reliable fallback model)
 
 5. NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
    - Purpose: Clerk frontend client key for user authentication and sessions.
